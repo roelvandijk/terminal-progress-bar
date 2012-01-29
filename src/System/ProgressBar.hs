@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude, PackageImports, UnicodeSyntax #-}
 
-module ProgressBar ( progressBar ) where
+module System.ProgressBar ( progressBar ) where
 
 import "base" Control.Monad ( when )
 import "base" Data.Function ( ($) )

@@ -1,0 +1,28 @@
+name:          terminal-progress-bar
+version:       0.0.1
+cabal-version: >=1.6
+build-type:    Simple
+stability:     provisional
+author:        Roel van Dijk <vandijk.roel@gmail.com>
+maintainer:    Roel van Dijk <vandijk.roel@gmail.com>
+copyright:     2012 Roel van Dijk <vandijk.roel@gmail.com>
+license:       BSD3
+license-file:  LICENSE
+category:
+homepage:      https://github.com/roelvandijk/terminal-progress-bar
+bug-reports:   https://github.com/roelvandijk/terminal-progress-bar/issues
+synopsis:      A simple progress bar in the terminal
+description:
+
+extra-source-files: LICENSE, README.markdown
+
+source-repository head
+  type:     git
+  location: git://github.com/roelvandijk/terminal-progress-bar.git
+
+library
+    hs-source-dirs: src
+    build-depends: base                 >= 3.0.3.1 && < 4.6
+                 , base-unicode-symbols >= 0.2.2.3 && < 0.3
+    exposed-modules: System.ProgressBar
+
