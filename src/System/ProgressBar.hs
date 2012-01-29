@@ -19,25 +19,12 @@ import "base-unicode-symbols" Prelude.Unicode ( ℤ, ℚ, (⋅) )
 -- Erases the current line! (by outputting '\r') Does not print a
 -- newline '\n'. Subsequent invocations will overwrite the previous
 -- output.
-
--- TODO: if labels decrease in size in subsequent calls the last
--- characters are not erased:
---
--- putStr "example"
--- > example
--- putStr "example" >> putStr "\r"
--- > example
--- putStr "example" >> putStr "\r" >> putStr "foo"
--- > foomple
-progressBar ∷ String -- ^ Prefixed label.
-            → String -- ^ Postfixed label.
-            → ℤ      -- ^ Width in characters.
-            → ℚ      -- ^ Current progress.
+progressBar ∷ ℤ -- ^ Width in characters.
+            → ℚ -- ^ Current progress.
             → IO ()
-progressBar preLabel postLabel width fraction = do
+progressBar width fraction = do
     putChar '\r'
     putStr $ progressBarString width fraction
-
 
 progressBarString ∷ ℤ → ℚ → String
 progressBarString width fraction =
