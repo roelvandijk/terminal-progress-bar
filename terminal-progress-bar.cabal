@@ -14,6 +14,9 @@ bug-reports:   https://github.com/roelvandijk/terminal-progress-bar/issues
 synopsis:      A simple progress bar in the terminal
 description:
 
+  A progress bar is used to convey the progress of a task. This
+  package implements a very simple textual progress bar.
+
 extra-source-files: LICENSE, README.markdown
 
 source-repository head

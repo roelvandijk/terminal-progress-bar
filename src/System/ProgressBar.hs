@@ -31,6 +31,11 @@ import "base-unicode-symbols" Prelude.Unicode ( ℤ, (⋅) )
 -- Erases the current line! (by outputting '\r') Does not print a
 -- newline '\n'. Subsequent invocations will overwrite the previous
 -- output.
+--
+-- Remember to set the correct buffering mode for stdout:
+--
+-- > import System.IO ( hSetBuffering, BufferMode(NoBuffering), stdout )
+-- > hSetBuffering stdout NoBuffering
 progressBar ∷ Label -- ^ Prefixed label.
             → Label -- ^ Postfixed label.
             → ℤ     -- ^ Total progress bar width in characters.
@@ -41,11 +46,15 @@ progressBar mkPreLabel mkPostLabel width todo done = do
     putChar '\r'
     putStr $ mkProgressBar mkPreLabel mkPostLabel width todo done
 
-mkProgressBar ∷ Label
-              → Label
-              → ℤ
-              → ℤ
-              → ℤ
+-- | Renders a progress bar
+--
+-- >>> mkProgressBar (msg "Working") percentage 40 30 100
+-- "Working [========.................]  30%"
+mkProgressBar ∷ Label -- ^ Prefixed label.
+              → Label -- ^ Postfixed label.
+              → ℤ     -- ^ Total progress bar width in characters.
+              → ℤ     -- ^ Amount of work completed.
+              → ℤ     -- ^ Total amount of work.
               → String
 mkProgressBar mkPreLabel mkPostLabel width todo done =
     printf "%s%s[%s%s]%s%s"
@@ -79,17 +88,35 @@ mkProgressBar mkPreLabel mkPostLabel width todo done =
           | otherwise = " "
 
 
+-- | A label that can be pre- or postfixed to a progress bar.
 type Label = ℤ → ℤ → String
 
+-- | The empty label.
+--
+-- >>> noLabel 30 100
+-- ""
 noLabel ∷ Label
 noLabel = msg ""
 
+-- | A label consisting of a static string.
+--
+-- >>> msg "foo" 30 100
+-- "foo"
 msg ∷ String → Label
 msg s _ _ = s
 
+-- | A label which displays the progress as a percentage.
+--
+-- >>> percentage 30 100
+-- " 30%"
 percentage ∷ Label
 percentage done todo = printf "%3i%%" (round (done % todo ⋅ 100) ∷ ℤ)
 
+-- | A label which displays the progress as a fraction of the total
+-- amount of work.
+--
+-- >>> exact 30 100
+-- "30/100"
 exact ∷ Label
 exact done todo = show done ++ "/" ++ show todo
 
