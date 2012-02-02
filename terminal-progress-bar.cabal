@@ -23,6 +23,10 @@ source-repository head
   type:     git
   location: git://github.com/roelvandijk/terminal-progress-bar.git
 
+flag example
+  description: Build a small example
+  default: False
+
 library
     hs-source-dirs: src
     build-depends: base                 >= 3.0.3.1 && < 4.6
@@ -41,4 +45,15 @@ test-suite test-terminal-progress-bar
                , terminal-progress-bar == 0.0.1
                , test-framework        >= 0.3.3   && < 0.5
                , test-framework-hunit  >= 0.2.6   && < 0.3
+
+executable example
+  main-is: example.hs
+  hs-source-dirs: .
+  if flag(example)
+    build-depends: base                  >= 3.0.3.1 && < 4.6
+                 , base-unicode-symbols  >= 0.2.2.3 && < 0.3
+                 , terminal-progress-bar == 0.0.1
+    buildable: True
+  else
+    buildable: False
 
