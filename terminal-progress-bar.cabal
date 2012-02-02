@@ -37,7 +37,7 @@ library
 test-suite test-terminal-progress-bar
   type: exitcode-stdio-1.0
   main-is: test.hs
-  hs-source-dirs: src, test
+  hs-source-dirs: test
   ghc-options: -Wall
   build-depends: base                  >= 3.0.3.1 && < 4.6
                , base-unicode-symbols  >= 0.2.2.3 && < 0.3

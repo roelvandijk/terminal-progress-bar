@@ -14,14 +14,11 @@ import "base" System.Environment ( getArgs )
 import "base" System.IO          ( IO )
 import "base-unicode-symbols" Prelude.Unicode ( ℤ )
 import "HUnit" Test.HUnit.Base ( assertEqual )
-import "test-framework" Test.Framework ( defaultMainWithOpts
-                                       , interpretArgsOrExit
-                                       , Test, testGroup
-                                       )
+import "test-framework" Test.Framework
+    ( defaultMainWithOpts, interpretArgsOrExit, Test, testGroup )
 import "test-framework-hunit" Test.Framework.Providers.HUnit ( testCase )
-import "this" System.ProgressBar ( mkProgressBar
-                                 , Label, noLabel, msg, percentage, exact
-                                 )
+import "terminal-progress-bar" System.ProgressBar
+    ( mkProgressBar, Label, noLabel, msg, percentage, exact )
 
 --------------------------------------------------------------------------------
 -- Test suite
@@ -40,22 +37,26 @@ tests =
     , eqTest "pre & post" "pre [] post" (msg "pre") (msg "post") 0 0 0
     ]
   , testGroup "Bar fill"
-    [ eqTest "empty"    "[....]" noLabel noLabel 6 0 1
-    , eqTest "full"     "[====]" noLabel noLabel 6 1 1
-    , eqTest "half"     "[==..]" noLabel noLabel 6 1 2
-    , eqTest "overfull" "[====]" noLabel noLabel 6 2 1
+    [ eqTest "empty"       "[....]" noLabel noLabel 6  0   1
+    , eqTest "almost half" "[=>..]" noLabel noLabel 6 49 100
+    , eqTest "half"        "[==>.]" noLabel noLabel 6  1   2
+    , eqTest "almost full" "[===>]" noLabel noLabel 6 99 100
+    , eqTest "full"        "[====]" noLabel noLabel 6  1   1
+    , eqTest "overfull"    "[====]" noLabel noLabel 6  2   1
     ]
-  , testGroup "Percentage label"
-    [ eqTest "  0%" "  0% [....]" percentage noLabel 11 0 1
-    , eqTest "100%" "100% [====]" percentage noLabel 11 1 1
-    , eqTest " 50%" " 50% [==..]" percentage noLabel 11 1 2
-    , eqTest "200%" "200% [====]" percentage noLabel 11 2 1
-    ]
-  , testGroup "Exact label"
-    [ eqTest "0/0" "0/0 [....]" exact noLabel 10 0 0
-    , eqTest "1/1" "1/1 [====]" exact noLabel 10 1 1
-    , eqTest "1/2" "1/2 [==..]" exact noLabel 10 1 2
-    , eqTest "2/1" "2/1 [====]" exact noLabel 10 2 1
+  , testGroup "Labels"
+    [ testGroup "Percentage"
+      [ eqTest "  0%" "  0% [....]" percentage noLabel 11 0 1
+      , eqTest "100%" "100% [====]" percentage noLabel 11 1 1
+      , eqTest " 50%" " 50% [==>.]" percentage noLabel 11 1 2
+      , eqTest "200%" "200% [====]" percentage noLabel 11 2 1
+      ]
+    , testGroup "Exact"
+      [ eqTest "0/0" "0/0 [....]" exact noLabel 10 0 0
+      , eqTest "1/1" "1/1 [====]" exact noLabel 10 1 1
+      , eqTest "1/2" "1/2 [==>.]" exact noLabel 10 1 2
+      , eqTest "2/1" "2/1 [====]" exact noLabel 10 2 1
+      ]
     ]
   ]
 
