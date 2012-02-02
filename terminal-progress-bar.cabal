@@ -20,6 +20,11 @@ description:
   or build the package with the -fexample flag for a small example
   program.
   .
+  The animated progress bar depends entirely on the interpretation of
+  the carriage return character (\'\r\'). If your terminal interprets
+  it as something else then "move cursor to beginning of line", the
+  animation won't work.
+  .
   Note: Due to a bug in \"cabal haddock\" you will have to manually
   uncomment the example section in the cabal file. But uncommenting
   that section will result in \"cabal haddock\" failing.
