@@ -8,14 +8,21 @@ maintainer:    Roel van Dijk <vandijk.roel@gmail.com>
 copyright:     2012 Roel van Dijk <vandijk.roel@gmail.com>
 license:       BSD3
 license-file:  LICENSE
-category:
+category:      System, User Interfaces
 homepage:      https://github.com/roelvandijk/terminal-progress-bar
 bug-reports:   https://github.com/roelvandijk/terminal-progress-bar/issues
 synopsis:      A simple progress bar in the terminal
 description:
-
   A progress bar is used to convey the progress of a task. This
   package implements a very simple textual progress bar.
+  .
+  See the module 'System.ProgressBar' on how to use the progress bar
+  or build the package with the -fexample flag for a small example
+  program.
+  .
+  Note: Due to a bug in \"cabal haddock\" you will have to manually
+  uncomment the example section in the cabal file. But uncommenting
+  that section will result in \"cabal haddock\" failing.
 
 extra-source-files: LICENSE, README.markdown
 
@@ -24,7 +31,7 @@ source-repository head
   location: git://github.com/roelvandijk/terminal-progress-bar.git
 
 flag example
-  description: Build a small example
+  description: Build a small example program.
   default: False
 
 library
@@ -46,14 +53,14 @@ test-suite test-terminal-progress-bar
                , test-framework        >= 0.3.3   && < 0.5
                , test-framework-hunit  >= 0.2.6   && < 0.3
 
-executable example
-  main-is: example.hs
-  hs-source-dirs: .
-  if flag(example)
-    build-depends: base                  >= 3.0.3.1 && < 4.6
-                 , base-unicode-symbols  >= 0.2.2.3 && < 0.3
-                 , terminal-progress-bar == 0.0.1
-    buildable: True
-  else
-    buildable: False
+-- executable example
+--   main-is: example.hs
+--   hs-source-dirs: .
+--   if flag(example)
+--     build-depends: base                  >= 3.0.3.1 && < 4.6
+--                  , base-unicode-symbols  >= 0.2.2.3 && < 0.3
+--                  , terminal-progress-bar == 0.0.1
+--     buildable: True
+--   else
+--     buildable: False
 
