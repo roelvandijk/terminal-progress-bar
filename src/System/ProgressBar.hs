@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude, PackageImports, UnicodeSyntax #-}
+{-# LANGUAGE NoImplicitPrelude, PackageImports, NamedFieldPuns, RecordWildCards, UnicodeSyntax #-}
 
 module System.ProgressBar
     ( -- * Progress bars
@@ -10,18 +10,27 @@ module System.ProgressBar
     , msg
     , percentage
     , exact
+    -- * auto-printing
+    , ProgressRef
+    , startProgress
+    , incProgress
     ) where
 
+import "base" Control.Monad ( (=<<), (>>), return, when )
 import "base" Data.Bool     ( otherwise )
-import "base" Data.Function ( ($) )
+import "base" Data.Function ( ($), (.) )
 import "base" Data.List     ( null, length, genericLength, genericReplicate )
-import "base" Data.Ord      ( min, max )
+import "base" Data.Maybe    ( maybe )
+import "base" Data.Ord      ( min, max, (>=) )
 import "base" Data.Ratio    ( (%) )
 import "base" Data.String   ( String )
-import "base" Prelude       ( (+), (-), round, floor )
+import "base" Prelude       ( (+), (-), round, floor, Bool(..) )
 import "base" System.IO     ( IO, putStr, putChar )
 import "base" Text.Printf   ( printf )
 import "base" Text.Show     ( show )
+import "base"  Control.Concurrent ( ThreadId, forkIO )
+import "stm"  Control.Concurrent.STM ( TVar, readTVar, writeTVar, newTVar, atomically, STM )
+import "stm-chans"  Control.Concurrent.STM.TMQueue ( TMQueue, readTMQueue, closeTMQueue, writeTMQueue, newTMQueue )
 import "base-unicode-symbols" Data.Bool.Unicode ( (∧) )
 import "base-unicode-symbols" Data.Eq.Unicode   ( (≢) )
 import "base-unicode-symbols" Prelude.Unicode   ( ℤ, ℚ, (⋅) )
@@ -147,3 +156,64 @@ exact ∷ Label
 exact done total = printf "%*i/%s" (length totalStr) done totalStr
   where
     totalStr = show total
+
+-- * Auto-Printing Progress
+
+data ProgressRef = ProgressRef { prPrefix    ∷ Label
+                               , prPostfix   ∷ Label
+                               , prWidth     ∷ ℤ
+                               , prCompleted ∷ TVar ℤ
+                               , prTotal     ∷ ℤ
+                               , prQueue     ∷ TMQueue ℤ }
+
+-- | Start a thread to automatically display progress. Use incProgress to step
+-- the progress bar.
+startProgress ∷ Label -- ^ Prefixed label.
+              → Label -- ^ Postfixed label.
+              → ℤ     -- ^ Total progress bar width in characters.
+              → ℤ     -- ^ Total amount of work.
+              → IO (ProgressRef, ThreadId)
+startProgress mkPreLabel mkPostLabel width total = do
+    pr  <- buildProgressRef
+    tid <- forkIO $ reportProgress pr
+    return (pr, tid)
+    where
+      buildProgressRef = do
+        completed <- atomically $ newTVar 0
+        queue     <- atomically $ newTMQueue
+        return $ ProgressRef mkPreLabel mkPostLabel width completed total queue
+
+-- | Increment the progress bar. Negative values will reverse the progress.
+-- Progress will never be negative and will silently stop taking data when it
+-- completes.
+incProgress ∷ ProgressRef
+            → ℤ
+            → IO ()
+incProgress ProgressRef {prQueue} = atomically . writeTMQueue prQueue
+
+reportProgress ∷ ProgressRef
+               → IO ()
+reportProgress pr = do
+  continue <- atomically $ updateProgress pr
+  renderProgress pr
+  when continue $ reportProgress pr
+
+updateProgress ∷ ProgressRef
+               → STM Bool
+updateProgress ProgressRef {prCompleted, prQueue, prTotal} = do
+  maybe dontContinue doUpdate =<< readTMQueue prQueue
+  where
+    dontContinue = return False
+    doUpdate countDiff = do
+      count <- readTVar prCompleted
+      let newCount = min prTotal $ max 0 $ count + countDiff
+      writeTVar prCompleted newCount
+      if newCount >= prTotal
+        then closeTMQueue prQueue >> dontContinue
+        else return True
+                       
+renderProgress ∷ ProgressRef
+               → IO ()
+renderProgress ProgressRef {..} = do
+  completed <- atomically $ readTVar prCompleted
+  progressBar prPrefix prPostfix prWidth completed prTotal
