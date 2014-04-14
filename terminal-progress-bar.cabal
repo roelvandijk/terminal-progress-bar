@@ -5,7 +5,7 @@ build-type:    Simple
 stability:     provisional
 author:        Roel van Dijk <vandijk.roel@gmail.com>
 maintainer:    Roel van Dijk <vandijk.roel@gmail.com>
-copyright:     2012 Roel van Dijk <vandijk.roel@gmail.com>
+copyright:     2012–2014 Roel van Dijk <vandijk.roel@gmail.com>
 license:       BSD3
 license-file:  LICENSE
 category:      System, User Interfaces
@@ -21,8 +21,8 @@ description:
   program.
   .
   The animated progress bar depends entirely on the interpretation of
-  the carriage return character (\'\r\'). If your terminal interprets
-  it as something else then "move cursor to beginning of line", the
+  the carriage return character (\'\\r\'). If your terminal interprets
+  it as something else then \"move cursor to beginning of line\", the
   animation won't work.
   .
   Note: Due to a bug in \"cabal haddock\" you will have to manually
