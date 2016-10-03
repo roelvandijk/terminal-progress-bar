@@ -1,18 +1,12 @@
-{-# LANGUAGE NoImplicitPrelude, PackageImports, UnicodeSyntax #-}
+{-# language PackageImports #-}
 
 module Main where
-
 
 --------------------------------------------------------------------------------
 -- Imports
 --------------------------------------------------------------------------------
 
-import "base" Control.Monad      ( (=<<) )
-import "base" Data.Function      ( ($) )
-import "base" Prelude            ( String )
 import "base" System.Environment ( getArgs )
-import "base" System.IO          ( IO )
-import "base-unicode-symbols" Prelude.Unicode ( ℤ )
 import "HUnit" Test.HUnit.Base ( assertEqual )
 import "test-framework" Test.Framework
     ( defaultMainWithOpts, interpretArgsOrExit, Test, testGroup )
@@ -24,11 +18,11 @@ import "terminal-progress-bar" System.ProgressBar
 -- Test suite
 --------------------------------------------------------------------------------
 
-main ∷ IO ()
-main = do opts ← interpretArgsOrExit =<< getArgs
+main :: IO ()
+main = do opts <- interpretArgsOrExit =<< getArgs
           defaultMainWithOpts tests opts
 
-tests ∷ [Test]
+tests :: [Test]
 tests =
   [ testGroup "Label padding"
     [ eqTest "no labels"  "[]"          noLabel     noLabel      0 0 0
@@ -60,10 +54,9 @@ tests =
     ]
   ]
 
-eqTest ∷ String → String → Label → Label → ℤ → ℤ → ℤ → Test
+eqTest :: String -> String -> Label -> Label -> Integer -> Integer -> Integer -> Test
 eqTest name expected mkPreLabel mkPostLabel width todo done =
     testCase name $ assertEqual errMsg expected actual
   where
     actual = mkProgressBar mkPreLabel mkPostLabel width todo done
     errMsg = "Expected result doesn't match actual result"
-
