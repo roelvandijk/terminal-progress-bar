@@ -22,7 +22,7 @@ description:
   .
   The animated progress bar depends entirely on the interpretation of
   the carriage return character (\'\\r\'). If your terminal interprets
-  it as something else then \"move cursor to beginning of line\", the
+  it as something else than \"move cursor to beginning of line\", the
   animation won't work.
 
 extra-source-files: LICENSE, README.markdown
