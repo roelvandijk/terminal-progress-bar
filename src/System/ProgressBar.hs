@@ -50,9 +50,9 @@ progressBar = hProgressBar stderr
 -- newline '\n'. Subsequent invocations will overwrite the previous
 -- output.
 hProgressBar :: Handle -> ProgressBar (IO ())
-hProgressBar hndl mkPreLabel mkPostLabel width todo done = do
+hProgressBar hndl mkPreLabel mkPostLabel width done todo = do
     hPutChar hndl '\r'
-    hPutStr hndl $ mkProgressBar mkPreLabel mkPostLabel width todo done
+    hPutStr hndl $ mkProgressBar mkPreLabel mkPostLabel width done todo
     hFlush hndl
 
 -- | Renders a progress bar
@@ -60,7 +60,7 @@ hProgressBar hndl mkPreLabel mkPostLabel width todo done = do
 -- >>> mkProgressBar (msg "Working") percentage 40 30 100
 -- "Working [=======>.................]  30%"
 mkProgressBar :: ProgressBar String
-mkProgressBar mkPreLabel mkPostLabel width todo done =
+mkProgressBar mkPreLabel mkPostLabel width done todo =
     printf "%s%s[%s%s%s]%s%s"
            preLabel
            prePad
@@ -74,7 +74,7 @@ mkProgressBar mkPreLabel mkPostLabel width todo done =
   where
     -- Amount of work completed.
     fraction :: Rational
-    fraction | done /= 0  = todo % done
+    fraction | todo /= 0 = done % todo
              | otherwise = 0 % 1
 
     -- Amount of characters available to visualize the progress.
@@ -95,8 +95,8 @@ mkProgressBar mkPreLabel mkPostLabel width todo done =
     remaining = effectiveWidth - completed
 
     preLabel, postLabel :: String
-    preLabel  = mkPreLabel  todo done
-    postLabel = mkPostLabel todo done
+    preLabel  = mkPreLabel  done todo
+    postLabel = mkPostLabel done todo
 
     prePad, postPad :: String
     prePad  = pad preLabel
