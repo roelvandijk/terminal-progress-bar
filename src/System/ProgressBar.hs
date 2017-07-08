@@ -7,6 +7,8 @@ module System.ProgressBar
     , autoProgressBar
     , hProgressBar
     , mkProgressBar
+      -- * Progress state
+    , Progress(..)
       -- * Labels
     , Label
     , noLabel
@@ -17,12 +19,11 @@ module System.ProgressBar
     , ProgressRef
     , startProgress
     , incProgress
-      -- * Progress state
-    , Progress(..)
     ) where
 
 import "base" System.IO ( Handle, stderr )
 import "base" Control.Concurrent ( ThreadId )
+import           "this" System.ProgressBar.State ( Progress(..) )
 import qualified "this" System.ProgressBar.State as State
 
 -- | Type of functions producing a progress bar.
@@ -138,16 +139,3 @@ incProgress :: ProgressRef -> Integer -> IO ()
 incProgress pr amount =
     State.incProgress pr
       (\st -> st { progressDone = progressDone st + amount })
-
--- | State of a progress bar.
-data Progress
-   = Progress
-     { progressDone :: !Integer
-       -- ^ Amount of work completed.
-     , progressTodo :: !Integer
-       -- ^ Total amount of work.
-     }
-
-instance State.LabelAmount Progress where
-    doneAmount = progressDone
-    todoAmount = progressTodo
