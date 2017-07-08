@@ -5,7 +5,6 @@ module Main where
 import "base" Control.Concurrent ( threadDelay )
 import "base" Control.Monad ( forM_ )
 import "terminal-progress-bar" System.ProgressBar
-    ( autoProgressBar, percentage, exact, startProgress, incProgress )
 
 main :: IO ()
 main = do
