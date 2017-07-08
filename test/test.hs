@@ -44,19 +44,27 @@ tests =
       , eqTest "100%" "100% [====]" percentage noLabel 11 1 1
       , eqTest " 50%" " 50% [==>.]" percentage noLabel 11 1 2
       , eqTest "200%" "200% [====]" percentage noLabel 11 2 1
+      , labelTest "0 work todo" percentage 10 0 "100%"
       ]
     , testGroup "Exact"
       [ eqTest "0/0" "0/0 [....]" exact noLabel 10 0 0
       , eqTest "1/1" "1/1 [====]" exact noLabel 10 1 1
       , eqTest "1/2" "1/2 [==>.]" exact noLabel 10 1 2
       , eqTest "2/1" "2/1 [====]" exact noLabel 10 2 1
+      , labelTest "0 work todo" exact 10 0 "10/0"
       ]
     ]
   ]
 
+labelTest :: String -> Label -> Integer -> Integer -> String -> Test
+labelTest testName label done todo expected =
+    testCase testName $ assertEqual expectationError expected (label done todo)
+
 eqTest :: String -> String -> Label -> Label -> Integer -> Integer -> Integer -> Test
 eqTest name expected mkPreLabel mkPostLabel width todo done =
-    testCase name $ assertEqual errMsg expected actual
+    testCase name $ assertEqual expectationError expected actual
   where
     actual = mkProgressBar mkPreLabel mkPostLabel width todo done
-    errMsg = "Expected result doesn't match actual result"
+
+expectationError :: String
+expectationError = "Expected result doesn't match actual result"

@@ -134,10 +134,14 @@ msg s _ _ = s
 --
 -- >>> percentage 30 100
 -- " 30%"
+--
+-- __Note__: if no work is to be done (todo == 0) the percentage will
+-- always be 100%.
 
 -- ∀ d t : ℕ. d ≤ t -> length (percentage d t) ≡ 3
 percentage :: Label
-percentage done todo = printf "%3i%%" (round (done % todo * 100) :: Integer)
+percentage _done 0    = "100%"
+percentage  done todo = printf "%3i%%" (round (done % todo * 100) :: Integer)
 
 -- | A label which displays the progress as a fraction of the total
 -- amount of work.
