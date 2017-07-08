@@ -1,12 +1,12 @@
 { mkDerivation, base, HUnit, stdenv, stm
-, stm-chans, test-framework, test-framework-hunit
+, stm-chans, terminal-size, test-framework, test-framework-hunit
 }:
 mkDerivation {
   pname = "terminal-progress-bar";
   version = "0.1.0";
   src = ./.;
   libraryHaskellDepends = [
-    base stm stm-chans
+    base stm stm-chans terminal-size
   ];
   testHaskellDepends = [
     base HUnit test-framework test-framework-hunit

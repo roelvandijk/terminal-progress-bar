@@ -5,7 +5,7 @@ module Main where
 import "base" Control.Concurrent ( threadDelay )
 import "base" Control.Monad ( forM_ )
 import "terminal-progress-bar" System.ProgressBar
-    ( progressBar, percentage, exact, startProgress, incProgress )
+    ( autoProgressBar, percentage, exact, startProgress, incProgress )
 
 main :: IO ()
 main = do
@@ -15,7 +15,7 @@ main = do
 example :: Integer -> Integer -> Int -> IO ()
 example t w delay = do
     forM_ [1..t] $ \d -> do
-      progressBar percentage exact w d t
+      autoProgressBar percentage exact w d t
       threadDelay delay
     putStrLn ""
 

@@ -4,6 +4,7 @@ module System.ProgressBar
     ( -- * Progress bars
       ProgressBar
     , progressBar
+    , autoProgressBar
     , hProgressBar
     , mkProgressBar
       -- * Labels
@@ -28,12 +29,18 @@ import "stm"  Control.Concurrent.STM
     ( TVar, readTVar, writeTVar, newTVar, atomically, STM )
 import "stm-chans"  Control.Concurrent.STM.TMQueue
     ( TMQueue, readTMQueue, closeTMQueue, writeTMQueue, newTMQueue )
+import qualified "terminal-size" System.Console.Terminal.Size as TS
 
 -- | Type of functions producing a progress bar.
 type ProgressBar a
-   = Label   -- ^ Prefixed label.
-  -> Label   -- ^ Postfixed label.
-  -> Integer -- ^ Total progress bar width in characters.
+   = Label -- ^ Prefixed label.
+  -> Label -- ^ Postfixed label.
+  -> Integer
+     -- ^ Total progress bar width in characters. Either used as given
+     -- or as a default when the width of the terminal can not be
+     -- determined.
+     --
+     -- See 'autoProgressBar'.
   -> Integer -- ^ Amount of work completed.
   -> Integer -- ^ Total amount of work.
   -> a
@@ -43,6 +50,18 @@ type ProgressBar a
 -- See 'hProgressBar'.
 progressBar :: ProgressBar (IO ())
 progressBar = hProgressBar stderr
+
+-- | Print a progress bar to 'stderr' which takes up all available space.
+--
+-- The given width will be used if the width of the terminal can not
+-- be determined.
+--
+-- See 'hProgressBar'.
+autoProgressBar :: ProgressBar (IO ())
+autoProgressBar mkPreLabel mkPostLabel defaultWidth done todo = do
+    mbWindow <- TS.size
+    let width = maybe defaultWidth TS.width mbWindow
+    progressBar mkPreLabel mkPostLabel width done todo
 
 -- | Print a progress bar to a file handle.
 --
@@ -175,7 +194,8 @@ data ProgressRef
 startProgress
     :: Label   -- ^ Prefixed label.
     -> Label   -- ^ Postfixed label.
-    -> Integer -- ^ Total progress bar width in characters.
+    -> Integer -- ^ Total progress bar width in characters. Only used
+               -- if the width can not be automatically determined.
     -> Integer -- ^ Total amount of work.
     -> IO (ProgressRef, ThreadId)
 startProgress mkPreLabel mkPostLabel width total = do
@@ -217,4 +237,4 @@ updateProgress ProgressRef {prCompleted, prQueue, prTotal} = do
 renderProgress :: ProgressRef -> IO ()
 renderProgress ProgressRef {..} = do
     completed <- atomically $ readTVar prCompleted
-    progressBar prPrefix prPostfix prWidth completed prTotal
+    autoProgressBar prPrefix prPostfix prWidth completed prTotal
