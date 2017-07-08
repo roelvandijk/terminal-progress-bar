@@ -1,4 +1,4 @@
-{-# language PackageImports, NamedFieldPuns, RecordWildCards #-}
+{-# language PackageImports #-}
 
 module System.ProgressBar
     ( -- * Progress bars
@@ -181,12 +181,12 @@ exact done total = printf "%*i/%s" (length totalStr) done totalStr
 
 data ProgressRef
    = ProgressRef
-     { prPrefix    :: Label
-     , prPostfix   :: Label
-     , prWidth     :: Integer
-     , prCompleted :: TVar Integer
-     , prTotal     :: Integer
-     , prQueue     :: TMQueue Integer
+     { prPrefix    :: !Label
+     , prPostfix   :: !Label
+     , prWidth     :: !Integer
+     , prCompleted :: !(TVar Integer)
+     , prTotal     :: !Integer
+     , prQueue     :: !(TMQueue Integer)
      }
 
 -- | Start a thread to automatically display progress. Use incProgress to step
@@ -202,11 +202,10 @@ startProgress mkPreLabel mkPostLabel width total = do
     pr  <- buildProgressRef
     tid <- forkIO $ reportProgress pr
     return (pr, tid)
-    where
-      buildProgressRef = do
-        completed <- atomically $ newTVar 0
-        queue     <- atomically $ newTMQueue
-        return $ ProgressRef mkPreLabel mkPostLabel width completed total queue
+  where
+    buildProgressRef = do
+      (completed, queue) <- atomically $ (,) <$> newTVar 0 <*> newTMQueue
+      return $ ProgressRef mkPreLabel mkPostLabel width completed total queue
 
 -- | Increment the progress bar. Negative values will reverse the progress.
 -- Progress will never be negative and will silently stop taking data
@@ -222,19 +221,24 @@ reportProgress pr = do
     when continue $ reportProgress pr
 
 updateProgress :: ProgressRef -> STM Bool
-updateProgress ProgressRef {prCompleted, prQueue, prTotal} = do
-    maybe dontContinue doUpdate =<< readTMQueue prQueue
-    where
-      dontContinue = return False
-      doUpdate countDiff = do
-        count <- readTVar prCompleted
-        let newCount = min prTotal $ max 0 $ count + countDiff
-        writeTVar prCompleted newCount
-        if newCount >= prTotal
-          then closeTMQueue prQueue >> dontContinue
-          else return True
+updateProgress pr =
+    maybe dontContinue doUpdate =<< readTMQueue (prQueue pr)
+  where
+    dontContinue = return False
+    doUpdate countDiff = do
+      count <- readTVar (prCompleted pr)
+      let newCount = min (prTotal pr) $ max 0 $ count + countDiff
+      writeTVar (prCompleted pr) newCount
+      if newCount >= prTotal pr
+        then closeTMQueue (prQueue pr) >> dontContinue
+        else return True
 
 renderProgress :: ProgressRef -> IO ()
-renderProgress ProgressRef {..} = do
-    completed <- atomically $ readTVar prCompleted
-    autoProgressBar prPrefix prPostfix prWidth completed prTotal
+renderProgress pr = do
+    completed <- atomically $ readTVar $ prCompleted pr
+    autoProgressBar
+      (prPrefix  pr)
+      (prPostfix pr)
+      (prWidth   pr)
+      completed
+      (prTotal   pr)
