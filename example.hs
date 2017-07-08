@@ -13,16 +13,16 @@ main = do
   example' 60 (13 + 60) 25000
 
 example :: Integer -> Integer -> Int -> IO ()
-example t w delay = do
-    forM_ [1..t] $ \d -> do
-      autoProgressBar percentage exact w d t
+example todo w delay = do
+    forM_ [1 .. todo] $ \done -> do
+      autoProgressBar percentage exact w $ Progress done todo
       threadDelay delay
     putStrLn ""
 
 example' :: Integer -> Integer -> Int -> IO ()
-example' t w delay = do
-    (pr, _) <- startProgress percentage exact w t
-    forM_ [1..t] $ \_d -> do
+example' todo w delay = do
+    (pr, _) <- startProgress percentage exact w $ Progress 0 todo
+    forM_ [1 .. todo] $ \_done -> do
       incProgress pr 1
       threadDelay delay
     putStrLn ""

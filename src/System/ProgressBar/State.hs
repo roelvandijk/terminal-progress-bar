@@ -1,8 +1,11 @@
-{-# language PackageImports, NamedFieldPuns, RecordWildCards, FlexibleInstances #-}
+{-# language PackageImports #-}
+{-# OPTIONS_HADDOCK not-home #-}
+
 module System.ProgressBar.State
     ( -- * Progress bars
       ProgressBar
     , progressBar
+    , autoProgressBar
     , hProgressBar
     , mkProgressBar
       -- * Labels
@@ -28,20 +31,38 @@ import "stm"  Control.Concurrent.STM
     ( TVar, readTVar, writeTVar, newTVar, atomically, STM )
 import "stm-chans"  Control.Concurrent.STM.TMQueue
     ( TMQueue, readTMQueue, closeTMQueue, writeTMQueue, newTMQueue )
+import qualified "terminal-size" System.Console.Terminal.Size as TS
 
 -- | Type of functions producing a progress bar.
 type ProgressBar s a
    = Label s -- ^ Prefixed label.
   -> Label s -- ^ Postfixed label.
-  -> Integer -- ^ Total progress bar width in characters.
-  -> s       -- ^ progress bar state
+  -> Integer
+     -- ^ Total progress bar width in characters. Either used as given
+     -- or as a default when the width of the terminal can not be
+     -- determined.
+     --
+     -- See 'autoProgressBar'.
+  -> s -- ^ Progress bar state.
   -> a
 
 -- | Print a progress bar to 'stderr'
 --
 -- See 'hProgressBar'.
-progressBar :: LabelAmount s => ProgressBar s (IO ())
+progressBar :: (LabelAmount s) => ProgressBar s (IO ())
 progressBar = hProgressBar stderr
+
+-- | Print a progress bar to 'stderr' which takes up all available space.
+--
+-- The given width will be used if the width of the terminal can not
+-- be determined.
+--
+-- See 'hProgressBar'.
+autoProgressBar :: (LabelAmount s) => ProgressBar s (IO ())
+autoProgressBar mkPreLabel mkPostLabel defaultWidth st = do
+    mbWindow <- TS.size
+    let width = maybe defaultWidth TS.width mbWindow
+    progressBar mkPreLabel mkPostLabel width st
 
 -- | Print a progress bar to a file handle.
 --
@@ -58,7 +79,7 @@ hProgressBar hndl mkPreLabel mkPostLabel width st = do
 --
 -- >>> mkProgressBar (msg "Working") percentage 40 30 100
 -- "Working [=======>.................]  30%"
-mkProgressBar :: LabelAmount s => ProgressBar s String
+mkProgressBar :: (LabelAmount s) => ProgressBar s String
 mkProgressBar mkPreLabel mkPostLabel width st =
     printf "%s%s[%s%s%s]%s%s"
            preLabel
@@ -108,19 +129,18 @@ mkProgressBar mkPreLabel mkPostLabel width st =
     pad s | null s    = ""
           | otherwise = " "
 
--- | Class for progress bar label
+-- | Class for the default progress bar labels.
+--
+-- Any progress bar state that implements this class can be used by
+-- the default label functions.
 class LabelAmount s where
-  todoAmount :: s -> Integer    -- ^ Total amount of work
-  doneAmount :: s -> Integer    -- ^ Done amount of work
-
-instance LabelAmount (Integer, Integer) where
-  doneAmount (a, _) = a
-  todoAmount (_, a) = a
+    doneAmount :: s -> Integer -- ^ Amount of work completed.
+    todoAmount :: s -> Integer -- ^ Total amount of work.
 
 -- | A label that can be pre- or postfixed to a progress bar.
 type Label s
-   = s
-  -> String  -- ^ Resulting label.
+   = s      -- ^ Current progress bar state.
+  -> String -- ^ Resulting label.
 
 -- | The empty label.
 --
@@ -141,12 +161,20 @@ msg s _ = s
 -- Constant width property:
 -- &#x2200; d t : &#x2115;. d &#x2264; t &#x2192; length (percentage d t) &#x2261; 4
 --
--- >>> percentage (30, 100)
+-- >>> percentage 30 100
 -- " 30%"
+--
+-- __Note__: if no work is to be done (todo == 0) the percentage will
+-- always be 100%.
 
 -- ∀ d t : ℕ. d ≤ t -> length (percentage d t) ≡ 3
 percentage :: LabelAmount s => Label s
-percentage s = printf "%3i%%" (round (doneAmount s % todoAmount s * 100) :: Integer)
+percentage s
+    | todo == 0 = "100%"
+    | otherwise = printf "%3i%%" (round (done % todo * 100) :: Integer)
+  where
+    done = doneAmount s
+    todo = todoAmount s
 
 -- | A label which displays the progress as a fraction of the total
 -- amount of work.
@@ -177,7 +205,7 @@ data ProgressRef s
 -- | Start a thread to automatically display progress. Use incProgress to step
 -- the progress bar.
 startProgress
-    :: LabelAmount s
+    :: (LabelAmount s)
     => Label s   -- ^ Prefixed label.
     -> Label s   -- ^ Postfixed label.
     -> Integer   -- ^ Total progress bar width in characters.
@@ -193,7 +221,6 @@ startProgress mkPreLabel mkPostLabel width st = do
         queue   <- atomically $ newTMQueue
         return $ ProgressRef mkPreLabel mkPostLabel width tvSt queue
 
-
 -- | Increment the progress bar. Negative values will reverse the progress.
 -- Progress will never be negative and will silently stop taking data
 -- when it completes.
@@ -201,29 +228,33 @@ incProgress :: ProgressRef s -> (s -> s) -> IO ()
 incProgress progressRef =
     atomically . writeTMQueue (prQueue progressRef)
 
-reportProgress :: LabelAmount s => ProgressRef s -> IO ()
+reportProgress :: (LabelAmount s) => ProgressRef s -> IO ()
 reportProgress pr = do
     continue <- atomically $ updateProgress pr
     renderProgress pr
     when continue $ reportProgress pr
 
-updateProgress :: LabelAmount s => ProgressRef s -> STM Bool
-updateProgress ProgressRef {prState, prQueue } = do
-    maybe dontContinue doUpdate =<< readTMQueue prQueue
+updateProgress :: (LabelAmount s) => ProgressRef s -> STM Bool
+updateProgress pr = do
+    maybe dontContinue doUpdate =<< readTMQueue (prQueue pr)
     where
       dontContinue = return False
       doUpdate updState = do
-        st <- readTVar prState
+        st <- readTVar $ prState pr
         let st1 = updState st
             total = todoAmount st1
             count = doneAmount st1
         let newCount = min total $ max 0 count
-        writeTVar prState st1
+        writeTVar (prState pr) st1
         if newCount >= total
-          then closeTMQueue prQueue >> dontContinue
+          then closeTMQueue (prQueue pr) >> dontContinue
           else return True
 
-renderProgress :: LabelAmount s => ProgressRef s -> IO ()
-renderProgress ProgressRef {..} = do
-    st <- atomically $ readTVar prState
-    progressBar prPrefix prPostfix prWidth st
+renderProgress :: (LabelAmount s) => ProgressRef s -> IO ()
+renderProgress pr = do
+    st <- atomically $ readTVar $ prState pr
+    autoProgressBar
+      (prPrefix  pr)
+      (prPostfix pr)
+      (prWidth   pr)
+      st
