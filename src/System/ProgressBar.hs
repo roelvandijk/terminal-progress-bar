@@ -26,7 +26,6 @@ import "base" Control.Concurrent ( ThreadId )
 import qualified "this" System.ProgressBar.State as State
 
 -- | Type of functions producing a progress bar.
--- | Type of functions producing a progress bar.
 type ProgressBar a
    = Label -- ^ Prefixed label.
   -> Label -- ^ Postfixed label.
