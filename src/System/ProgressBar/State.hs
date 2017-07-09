@@ -23,12 +23,12 @@ module System.ProgressBar.State
     , incProgress
     ) where
 
+import "async" Control.Concurrent.Async ( Async, async )
 import "base" Control.Monad ( when )
 import "base" Data.List     ( genericLength, genericReplicate )
 import "base" Data.Ratio    ( (%) )
 import "base" System.IO     ( Handle, stderr, hPutChar, hPutStr, hFlush )
 import "base" Text.Printf   ( printf )
-import "base" Control.Concurrent ( ThreadId, forkIO )
 import "stm"  Control.Concurrent.STM
     ( TVar, readTVar, writeTVar, newTVar, atomically, STM )
 import "stm-chans"  Control.Concurrent.STM.TMQueue
@@ -214,30 +214,30 @@ exact s = printf "%*i/%s" (length totalStr) done totalStr
 
 data ProgressRef s
    = ProgressRef
-     { prPrefix    :: Label s
-     , prPostfix   :: Label s
-     , prWidth     :: Integer
-     , prState     :: TVar s
-     , prQueue     :: TMQueue (s -> s)
+     { prPrefix  :: !(Label s)
+     , prPostfix :: !(Label s)
+     , prWidth   :: !Integer
+     , prState   :: !(TVar s)
+     , prQueue   :: !(TMQueue (s -> s))
      }
 
 -- | Start a thread to automatically display progress. Use incProgress to step
 -- the progress bar.
 startProgress
     :: (HasProgress s)
-    => Label s   -- ^ Prefixed label.
-    -> Label s   -- ^ Postfixed label.
-    -> Integer   -- ^ Total progress bar width in characters.
-    -> s         -- ^ Init state
-    -> IO (ProgressRef s, ThreadId)
+    => Label s -- ^ Prefixed label.
+    -> Label s -- ^ Postfixed label.
+    -> Integer -- ^ Total progress bar width in characters.
+    -> s       -- ^ Init state
+    -> IO (ProgressRef s, Async ())
 startProgress mkPreLabel mkPostLabel width st = do
-    pr  <- buildProgressRef
-    tid <- forkIO $ reportProgress pr
-    return (pr, tid)
+    pr <- buildProgressRef
+    a  <- async $ reportProgress pr
+    return (pr, a)
     where
       buildProgressRef = do
-        tvSt    <- atomically $ newTVar st
-        queue   <- atomically $ newTMQueue
+        tvSt  <- atomically $ newTVar st
+        queue <- atomically $ newTMQueue
         return $ ProgressRef mkPreLabel mkPostLabel width tvSt queue
 
 -- | Increment the progress bar. Negative values will reverse the progress.

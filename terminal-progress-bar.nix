@@ -1,4 +1,4 @@
-{ mkDerivation, base, HUnit, stdenv, stm
+{ mkDerivation, async, base, HUnit, stdenv, stm, random
 , stm-chans, terminal-size, test-framework, test-framework-hunit
 }:
 mkDerivation {
@@ -6,7 +6,10 @@ mkDerivation {
   version = "0.1.0";
   src = ./.;
   libraryHaskellDepends = [
-    base stm stm-chans terminal-size
+    async base stm stm-chans terminal-size
+  ];
+  executableHaskellDepends = [
+    random
   ];
   testHaskellDepends = [
     base HUnit test-framework test-framework-hunit

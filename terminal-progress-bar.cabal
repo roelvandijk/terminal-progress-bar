@@ -37,10 +37,12 @@ flag example
 
 library
     hs-source-dirs: src
-    build-depends: base                 >= 3.0.3.1 && < 5.0
-                 , stm                  >= 2.4     && < 3.0
-                 , stm-chans            >= 3.0.0   && < 4.0
-                 , terminal-size        >= 0.3.2   && < 0.4
+    build-depends:
+        async         >= 2.1.1   && < 2.2
+      , base          >= 3.0.3.1 && < 5.0
+      , stm           >= 2.4     && < 3.0
+      , stm-chans     >= 3.0.0   && < 4.0
+      , terminal-size >= 0.3.2   && < 0.4
     exposed-modules: System.ProgressBar
                      System.ProgressBar.State
     ghc-options: -Wall
@@ -51,11 +53,12 @@ test-suite test-terminal-progress-bar
     main-is: test.hs
     hs-source-dirs: test
     ghc-options: -Wall
-    build-depends: base                  >= 3.0.3.1 && < 5.0
-                 , HUnit                 >= 1.2.4.2 && < 1.6
-                 , terminal-progress-bar
-                 , test-framework        >= 0.3.3   && < 0.9
-                 , test-framework-hunit  >= 0.2.6   && < 0.4
+    build-depends:
+        base                 >= 3.0.3.1 && < 5.0
+      , HUnit                >= 1.2.4.2 && < 1.6
+      , terminal-progress-bar
+      , test-framework       >= 0.3.3   && < 0.9
+      , test-framework-hunit >= 0.2.6   && < 0.4
     default-language: Haskell2010
 
 executable example
@@ -63,8 +66,11 @@ executable example
     hs-source-dirs: .
     ghc-options: -Wall
     if flag(example)
-      build-depends: base                  >= 3.0.3.1 && < 5.0
-                   , terminal-progress-bar
+      build-depends:
+          async  >= 2.1.1   && < 2.2
+        , base   >= 3.0.3.1 && < 5.0
+        , random >= 1.1     && < 1.2
+        , terminal-progress-bar
       buildable: True
     else
       buildable: False

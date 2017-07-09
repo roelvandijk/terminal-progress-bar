@@ -21,8 +21,8 @@ module System.ProgressBar
     , incProgress
     ) where
 
+import "async" Control.Concurrent.Async ( Async )
 import "base" System.IO ( Handle, stderr )
-import "base" Control.Concurrent ( ThreadId )
 import           "this" System.ProgressBar.State ( Progress(..) )
 import qualified "this" System.ProgressBar.State as State
 
@@ -129,7 +129,7 @@ startProgress
        -- ^ Total progress bar width in characters. Only used if the
        -- width can not be automatically determined.
     -> Progress -- ^ Initial progress state.
-    -> IO (ProgressRef, ThreadId)
+    -> IO (ProgressRef, Async ())
 startProgress = State.startProgress
 
 -- | Increment the progress bar. Negative values will reverse the progress.
