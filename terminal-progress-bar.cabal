@@ -39,7 +39,7 @@ library
     hs-source-dirs: src
     build-depends:
         async         >= 2.1.1
-      , base          >= 3.0.3.1
+      , base          >= 3.0.3.1 && < 5
       , stm           >= 2.4
       , stm-chans     >= 3.0.0
       , terminal-size >= 0.3.2
@@ -54,7 +54,7 @@ test-suite test-terminal-progress-bar
     hs-source-dirs: test
     ghc-options: -Wall
     build-depends:
-        base                 >= 3.0.3.1
+        base                 >= 3.0.3.1 && < 5
       , HUnit                >= 1.2.4.2
       , terminal-progress-bar
       , test-framework       >= 0.3.3
@@ -68,7 +68,7 @@ executable example
     if flag(example)
       build-depends:
           async  >= 2.1.1
-        , base   >= 3.0.3.1
+        , base   >= 3.0.3.1 && < 5
         , random >= 1.1
         , terminal-progress-bar
       buildable: True
