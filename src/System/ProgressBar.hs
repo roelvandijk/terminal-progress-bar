@@ -1,12 +1,25 @@
 {-# language PackageImports #-}
 
+{- |
+A progress bar is used to convey the progress of a task. This module
+implements a very simple textual progress bar.
+
+The animated progress bar depends entirely on the interpretation of
+the carriage return character (\'\\r\'). If your terminal interprets
+it as something else than \"move cursor to beginning of line\", the
+animation won't work.
+
+See "System.ProgressBar.State" for a more generic interface.
+-}
 module System.ProgressBar
     ( -- * Progress bars
-      ProgressBar
-    , progressBar
-    , autoProgressBar
+      progressBar
     , hProgressBar
     , mkProgressBar
+      -- * Options
+    , ProgressOptions(..)
+    , defProgressOptions
+    , ProgressBarWidth(..)
       -- * Progress state
     , Progress(..)
       -- * Labels
@@ -23,50 +36,39 @@ module System.ProgressBar
 
 import "async" Control.Concurrent.Async ( Async )
 import "base" System.IO ( Handle, stderr )
-import           "this" System.ProgressBar.State ( Progress(..) )
+import "this" System.ProgressBar.State
+    ( ProgressOptions(..)
+    , ProgressBarWidth(..)
+    , Progress(..)
+    )
 import qualified "this" System.ProgressBar.State as State
 
--- | Type of functions producing a progress bar.
-type ProgressBar a
-   = Label -- ^ Prefixed label.
-  -> Label -- ^ Postfixed label.
-  -> Integer
-     -- ^ Total progress bar width in characters. Either used as given
-     -- or as a default when the width of the terminal can not be
-     -- determined.
-     --
-     -- See 'autoProgressBar'.
-  -> Progress -- ^ Current progress.
-  -> a
+defProgressOptions :: ProgressOptions Progress
+defProgressOptions = State.defProgressOptions
 
 -- | Print a progress bar to 'stderr'
 --
 -- See 'hProgressBar'.
-progressBar :: ProgressBar (IO ())
+progressBar :: ProgressOptions Progress -> Progress -> IO ()
 progressBar = hProgressBar stderr
-
--- | Print a progress bar to 'stderr' which takes up all available space.
---
--- The given width will be used if the width of the terminal can not
--- be determined.
---
--- See 'hProgressBar'.
-autoProgressBar :: ProgressBar (IO ())
-autoProgressBar = State.autoProgressBar
 
 -- | Print a progress bar to a file handle.
 --
 -- Erases the current line! (by outputting '\r') Does not print a
 -- newline '\n'. Subsequent invocations will overwrite the previous
 -- output.
-hProgressBar :: Handle -> ProgressBar (IO ())
+hProgressBar :: Handle -> ProgressOptions Progress -> Progress -> IO ()
 hProgressBar = State.hProgressBar
 
 -- | Renders a progress bar
 --
 -- >>> mkProgressBar (msg "Working") percentage 40 30 100
 -- "Working [=======>.................]  30%"
-mkProgressBar :: ProgressBar String
+--
+-- Not that this function can not use 'TerminalWidth' because it
+-- doesn't use 'IO'. Use 'progressBar' or 'hProgressBar' to get
+-- automatic width.
+mkProgressBar :: ProgressOptions Progress -> Progress -> String
 mkProgressBar = State.mkProgressBar
 
 -- | A label that can be pre- or postfixed to a progress bar.
@@ -91,28 +93,26 @@ msg = State.msg
 -- | A label which displays the progress as a percentage.
 --
 -- Constant width property:
--- &#x2200; d t : &#x2115;. d &#x2264; t &#x2192; length (percentage d t) &#x2261; 4
+-- \(\forall d t : \mathbb{N}. d \leq t \rightarrow \texttt{(length \$ percentage \$ Progress d t)} \equiv 4\)
 --
 -- >>> percentage 30 100
 -- " 30%"
 --
 -- __Note__: if no work is to be done (todo == 0) the percentage will
 -- always be 100%.
-
--- ∀ d t : ℕ. d ≤ t -> length (percentage d t) ≡ 3
 percentage :: Label
 percentage = State.percentage
 
 -- | A label which displays the progress as a fraction of the total
 -- amount of work.
 --
--- Equal width property:
--- &#x2200; d&#x2081; d&#x2082; t : &#x2115;. d&#x2081; &#x2264; d&#x2082; &#x2264; t &#x2192; length (exact d&#x2081; t) &#x2261; length (exact d&#x2082; t)
+-- Equal width property - the length of the resulting label is a function of the
+-- total amount of work:
+--
+-- \(\forall d_1 d_2 t : \mathbb{N}. d_1 \leq d_2 \leq t \rightarrow \texttt{(length \$ exact \$ Progress d1 t)} \equiv \texttt{(length \$ exact \$ Progress d2 t)}\)
 --
 -- >>> exact 30 100
 -- " 30/100"
-
--- ∀ d₁ d₂ t : ℕ. d₁ ≤ d₂ ≤ t -> length (exact d₁ t) ≡ length (exact d₂ t)
 exact :: Label
 exact = State.exact
 
@@ -123,11 +123,7 @@ type ProgressRef = State.ProgressRef Progress
 -- | Start a thread to automatically display progress. Use incProgress to step
 -- the progress bar.
 startProgress
-    :: Label -- ^ Prefixed label.
-    -> Label -- ^ Postfixed label.
-    -> Integer
-       -- ^ Total progress bar width in characters. Only used if the
-       -- width can not be automatically determined.
+    :: ProgressOptions Progress
     -> Progress -- ^ Initial progress state.
     -> IO (ProgressRef, Async ())
 startProgress = State.startProgress

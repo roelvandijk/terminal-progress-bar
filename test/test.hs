@@ -63,7 +63,14 @@ eqTest :: String -> String -> Label -> Label -> Integer -> Progress -> Test
 eqTest name expected mkPreLabel mkPostLabel width progress =
     testCase name $ assertEqual expectationError expected actual
   where
-    actual = mkProgressBar mkPreLabel mkPostLabel width progress
+    actual = mkProgressBar opts progress
+
+    opts :: ProgressOptions Progress
+    opts = defProgressOptions
+           { progressOptPrefix = mkPreLabel
+           , progressOptPostfix = mkPostLabel
+           , progressOptWidth = ConstantWidth width
+           }
 
 expectationError :: String
 expectationError = "Expected result doesn't match actual result"

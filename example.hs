@@ -11,29 +11,37 @@ import "terminal-progress-bar" System.ProgressBar
 
 main :: IO ()
 main = do
-    example       60 (13 +  60) 25000
-    exampleAsync  60 (13 +  60) 25000
-    exampleAsync2    (13 + 100) 25000
+    example       60 25000
+    exampleAsync  60 25000
+    exampleAsync2    25000
 
-example :: Integer -> Integer -> Int -> IO ()
-example todo width delay = do
+exampleOptions :: ProgressOptions Progress
+exampleOptions =
+    defProgressOptions
+    { progressOptPrefix  = percentage
+    , progressOptPostfix = exact
+    , progressOptWidth   = TerminalWidth (13 + 60)
+    }
+
+example :: Integer -> Int -> IO ()
+example todo delay = do
     forM_ [1 .. todo] $ \done -> do
-      autoProgressBar percentage exact width $ Progress done todo
+      progressBar exampleOptions (Progress done todo)
       threadDelay delay
     putStrLn ""
 
-exampleAsync :: Integer -> Integer -> Int -> IO ()
-exampleAsync todo width delay = do
-    (pr, a) <- startProgress percentage exact width $ Progress 0 todo
+exampleAsync :: Integer -> Int -> IO ()
+exampleAsync todo delay = do
+    (pr, a) <- startProgress exampleOptions (Progress 0 todo)
     forM_ [1 .. todo] $ \_done -> do
       incProgress pr 1
       threadDelay delay
     wait a
     putStrLn ""
 
-exampleAsync2 :: Integer -> Int -> IO ()
-exampleAsync2 width delay = do
-    (pr, a) <- startProgress percentage exact width $ Progress 0 todo
+exampleAsync2 :: Int -> IO ()
+exampleAsync2 delay = do
+    (pr, a) <- startProgress exampleOptions (Progress 0 todo)
     -- Spawn some threads which each increment progress a bit.
     forM_ [1 .. numThreads] $ \_ ->
       void $ async $
