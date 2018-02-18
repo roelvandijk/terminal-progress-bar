@@ -1,13 +1,11 @@
+{-# language OverloadedStrings #-}
 {-# language PackageImports #-}
 {-# OPTIONS_HADDOCK not-home #-}
 
 {- |
-
 The 'Label's in this module have access to a polymorphic state. The
 only constrained on the state is that it can be converted a a
 'Progress'. This is expressed by the 'HasProgress' class.
-
-
 -}
 module System.ProgressBar.State
     ( -- * Progress bars
@@ -35,15 +33,19 @@ module System.ProgressBar.State
 
 import "async" Control.Concurrent.Async ( Async, async )
 import "base" Control.Monad ( when )
-import "base" Data.List     ( genericLength, genericReplicate )
-import "base" Data.Ratio    ( (%) )
-import "base" System.IO     ( Handle, stderr, hPutChar, hPutStr, hFlush )
-import "base" Text.Printf   ( printf )
+import "base" Data.Int      ( Int64 )
+import "base" Data.Monoid   ( (<>) )
+import "base" Data.Ratio    ( Ratio, (%) )
+import "base" System.IO     ( Handle, stderr, hFlush )
 import "stm"  Control.Concurrent.STM
     ( TVar, readTVar, writeTVar, newTVar, atomically, STM )
 import "stm-chans"  Control.Concurrent.STM.TMQueue
     ( TMQueue, readTMQueue, closeTMQueue, writeTMQueue, newTMQueue )
 import qualified "terminal-size" System.Console.Terminal.Size as TS
+import qualified "text" Data.Text.Lazy             as TL
+import qualified "text" Data.Text.Lazy.Builder     as TLB
+import qualified "text" Data.Text.Lazy.Builder.Int as TLB
+import qualified "text" Data.Text.Lazy.IO          as TL
 
 --------------------------------------------------------------------------------
 
@@ -61,8 +63,8 @@ progressBar = hProgressBar stderr
 hProgressBar :: (HasProgress s) => Handle -> ProgressOptions s -> s -> IO ()
 hProgressBar hndl opts st = do
     opts' <- updateWidth
-    hPutChar hndl '\r'
-    hPutStr hndl $ mkProgressBar opts' st
+    TL.hPutStr hndl "\r"
+    TL.hPutStr hndl $ mkProgressBar opts' st
     hFlush hndl
   where
     updateWidth =
@@ -82,76 +84,76 @@ hProgressBar hndl opts st = do
 -- Not that this function can not use 'TerminalWidth' because it
 -- doesn't use 'IO'. Use 'progressBar' or 'hProgressBar' to get
 -- automatic width.
-mkProgressBar :: (HasProgress s) => ProgressOptions s -> s -> String
-mkProgressBar opts st =
-    printf "%s%s%s%s%s%s%s%s%s"
-           preLabel
-           prePad
-           (progressOptOpen opts)
-           (concat $ genericReplicate completed $ progressOptDone opts)
-           ( if remaining /= 0 && completed /= 0
-             then progressOptCurrent opts else ""
-           )
-           ( concat $ genericReplicate
-               (remaining - if completed /= 0 then 1 else 0)
-               (progressOptTodo opts)
-           )
-           (progressOptClose opts)
-           postPad
-           postLabel
+mkProgressBar :: (HasProgress s) => ProgressOptions s -> s -> TL.Text
+mkProgressBar opts st = TL.concat
+    [ preLabel
+    , prePad
+    , progressOptOpen opts
+    , TL.replicate completed $ TL.singleton $ progressOptDone opts
+    , if remaining /= 0 && completed /= 0
+      then TL.singleton $ progressOptCurrent opts
+      else ""
+    , TL.replicate
+        (remaining - if completed /= 0 then 1 else 0)
+        (TL.singleton $ progressOptTodo opts)
+    , progressOptClose opts
+    , postPad
+    , postLabel
+    ]
   where
     progress = getProgress st
-    todo = progressTodo progress
-    done = progressDone progress
-    width = getProgressBarWidth $ progressOptWidth opts
+    todo = fromIntegral $ progressTodo progress
+    done = fromIntegral $ progressDone progress
+    -- Amount of (visible) characters that should be used to display to progress bar.
+    width = fromIntegral $ getProgressBarWidth $ progressOptWidth opts
 
     -- Amount of work completed.
-    fraction :: Rational
+    fraction :: Ratio Int64
     fraction | todo /= 0 = done % todo
              | otherwise = 0 % 1
 
     -- Amount of characters available to visualize the progress.
     effectiveWidth = max 0 $ width - usedSpace
-    usedSpace =   genericLength (progressOptOpen  opts)
-                + genericLength (progressOptClose opts)
-                + genericLength preLabel
-                + genericLength postLabel
-                + genericLength prePad
-                + genericLength postPad
+    usedSpace =   TL.length (progressOptOpen  opts)
+                + TL.length (progressOptClose opts)
+                + TL.length preLabel
+                + TL.length postLabel
+                + TL.length prePad
+                + TL.length postPad
 
     -- Number of characters needed to represent the amount of work
     -- that is completed. Note that this can not always be represented
     -- by an integer.
-    numCompletedChars :: Rational
+    numCompletedChars :: Ratio Int64
     numCompletedChars = fraction * (effectiveWidth % 1)
 
-    completed, remaining :: Integer
+    completed, remaining :: Int64
     completed = min effectiveWidth $ floor numCompletedChars
     remaining = effectiveWidth - completed
 
-    preLabel, postLabel :: String
+    preLabel, postLabel :: TL.Text
     preLabel  = progressOptPrefix  opts st
     postLabel = progressOptPostfix opts st
 
-    prePad, postPad :: String
+    prePad, postPad :: TL.Text
     prePad  = pad preLabel
     postPad = pad postLabel
 
-    pad :: String -> String
-    pad s | null s    = ""
-          | otherwise = " "
+    pad :: TL.Text -> TL.Text
+    pad s | TL.null s = TL.empty
+          | otherwise = TL.singleton ' '
 
 -- | Width of progress bar in characters.
 data ProgressBarWidth
-   = ConstantWidth !Integer
+   = ConstantWidth !Int
      -- ^ A constant width.
-   | TerminalWidth !Integer
+   | TerminalWidth !Int
      -- ^ Use the entire width of the terminal.
      --
      -- Identical to 'ConstantWidth' if the width of the terminal can
      -- not be determined.
 
-getProgressBarWidth :: ProgressBarWidth -> Integer
+getProgressBarWidth :: ProgressBarWidth -> Int
 getProgressBarWidth (ConstantWidth n) = n
 getProgressBarWidth (TerminalWidth n) = n
 
@@ -174,9 +176,9 @@ This bar can be specified using the following options:
 'ProgressOptions'
 { 'progressOptOpen'    = \"["
 , 'progressOptClose'   = \"]"
-, 'progressOptDone'    = \"="
-, 'progressOptCurrent' = \">"
-, 'progressOptTodo'    = \"."
+, 'progressOptDone'    = \'='
+, 'progressOptCurrent' = \'>'
+, 'progressOptTodo'    = \'.'
 , 'progressOptPrefix'  = 'msg' \"Working"
 , 'progressOptPostfix' = 'percentage'
 , 'progressOptWidth'   = 'ConstantWidth' 40
@@ -185,15 +187,15 @@ This bar can be specified using the following options:
 -}
 data ProgressOptions s
    = ProgressOptions
-     { progressOptOpen :: !String
+     { progressOptOpen :: !TL.Text
        -- ^ Bar opening symbol.
-     , progressOptClose :: !String
+     , progressOptClose :: !TL.Text
        -- ^ Bar closing symbol
-     , progressOptDone :: !String
+     , progressOptDone :: !Char
        -- ^ Completed work.
-     , progressOptCurrent :: !String
+     , progressOptCurrent :: !Char
        -- ^ Symbol used to denote the current amount of work that has been done.
-     , progressOptTodo :: !String
+     , progressOptTodo :: !Char
        -- ^ Work not yet completed.
      , progressOptPrefix :: Label s
        -- ^ Prefixed label.
@@ -208,9 +210,9 @@ defProgressOptions =
     ProgressOptions
     { progressOptOpen     = "["
     , progressOptClose    = "]"
-    , progressOptDone     = "="
-    , progressOptCurrent  = ">"
-    , progressOptTodo     = "."
+    , progressOptDone     = '='
+    , progressOptCurrent  = '>'
+    , progressOptTodo     = '.'
     , progressOptPrefix   = noLabel
     , progressOptPostfix  = percentage
     , progressOptWidth    = TerminalWidth 50
@@ -219,9 +221,9 @@ defProgressOptions =
 -- | State of a progress bar.
 data Progress
    = Progress
-     { progressDone :: !Integer
+     { progressDone :: !Int
        -- ^ Amount of work completed.
-     , progressTodo :: !Integer
+     , progressTodo :: !Int
        -- ^ Total amount of work.
      }
 
@@ -237,21 +239,21 @@ instance HasProgress Progress where
 
 -- | A label that can be pre- or postfixed to a progress bar.
 type Label s
-   = s      -- ^ Current progress bar state.
-  -> String -- ^ Resulting label.
+   = s -- ^ Current progress bar state.
+  -> TL.Text -- ^ Resulting label.
 
 -- | The empty label.
 --
 -- >>> noLabel st
 -- ""
 noLabel :: Label s
-noLabel = msg ""
+noLabel = msg TL.empty
 
 -- | A label consisting of a static string.
 --
 -- >>> msg "foo" st
 -- "foo"
-msg :: String -> Label s
+msg :: TL.Text -> Label s
 msg s _ = s
 
 -- | A label which displays the progress as a percentage.
@@ -267,7 +269,9 @@ msg s _ = s
 percentage :: HasProgress s => Label s
 percentage s
     | todo == 0 = "100%"
-    | otherwise = printf "%3i%%" (round (done % todo * 100) :: Integer)
+    | otherwise = TL.justifyRight 4 ' ' $ TLB.toLazyText $
+                    TLB.decimal (round (done % todo * 100) :: Int)
+                    <> TLB.singleton '%'
   where
     done = progressDone progress
     todo = progressTodo progress
@@ -284,9 +288,11 @@ percentage s
 -- >>> exact (30, 100)
 -- " 30/100"
 exact :: HasProgress s => Label s
-exact s = printf "%*i/%s" (length totalStr) done totalStr
+exact s = TL.justifyRight (TL.length todoStr) ' ' doneStr <> "/" <> todoStr
   where
-    totalStr = show todo
+    todoStr = TLB.toLazyText $ TLB.decimal todo
+    doneStr = TLB.toLazyText $ TLB.decimal done
+
     done = progressDone progress
     todo = progressTodo progress
     progress = getProgress s

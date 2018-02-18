@@ -36,6 +36,7 @@ module System.ProgressBar
 
 import "async" Control.Concurrent.Async ( Async )
 import "base" System.IO ( Handle, stderr )
+import qualified "text" Data.Text.Lazy as TL
 import "this" System.ProgressBar.State
     ( ProgressOptions(..)
     , ProgressBarWidth(..)
@@ -62,19 +63,28 @@ hProgressBar = State.hProgressBar
 
 -- | Renders a progress bar
 --
--- >>> mkProgressBar (msg "Working") percentage 40 30 100
+-- @
+-- let opts =
+--       'defProgressOptions'
+--       { progressOptPrefix  = msg \"Working"
+--       , progressOptPostfix = percentage
+--       , progressOptWidth   = ConstantWidth 40
+--       }
+-- @
+--
+-- >>> mkProgressBar opts (Progress 30 100)
 -- "Working [=======>.................]  30%"
 --
--- Not that this function can not use 'TerminalWidth' because it
--- doesn't use 'IO'. Use 'progressBar' or 'hProgressBar' to get
--- automatic width.
-mkProgressBar :: ProgressOptions Progress -> Progress -> String
+-- Not that this function treats 'TerminalWidth' the same as
+-- 'ConstantWidth' because it doesn't use 'IO'. Use 'progressBar' or
+-- 'hProgressBar' to get automatic width.
+mkProgressBar :: ProgressOptions Progress -> Progress -> TL.Text
 mkProgressBar = State.mkProgressBar
 
 -- | A label that can be pre- or postfixed to a progress bar.
 type Label
    = Progress -- ^ Current progress.
-  -> String -- ^ Resulting label.
+  -> TL.Text -- ^ Resulting label.
 
 -- | The empty label.
 --
@@ -87,7 +97,7 @@ noLabel = State.noLabel
 --
 -- >>> msg "foo" 30 100
 -- "foo"
-msg :: String -> Label
+msg :: TL.Text -> Label
 msg = State.msg
 
 -- | A label which displays the progress as a percentage.
@@ -131,7 +141,7 @@ startProgress = State.startProgress
 -- | Increment the progress bar. Negative values will reverse the progress.
 -- Progress will never be negative and will silently stop taking data
 -- when it completes.
-incProgress :: ProgressRef -> Integer -> IO ()
+incProgress :: ProgressRef -> Int -> IO ()
 incProgress pr amount =
     State.incProgress pr
       (\st -> st { progressDone = progressDone st + amount })

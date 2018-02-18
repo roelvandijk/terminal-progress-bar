@@ -23,18 +23,18 @@ exampleOptions =
     , progressOptWidth   = TerminalWidth (13 + 60)
     }
 
-example :: Integer -> Int -> IO ()
+example :: Int -> Int -> IO ()
 example todo delay = do
     forM_ [1 .. todo] $ \done -> do
       progressBar exampleOptions (Progress done todo)
       threadDelay delay
     putStrLn ""
 
-exampleAsync :: Integer -> Int -> IO ()
+exampleAsync :: Int -> Int -> IO ()
 exampleAsync todo delay = do
     (pr, a) <- startProgress exampleOptions (Progress 0 todo)
     forM_ [1 .. todo] $ \_done -> do
-      incProgress pr 1
+      incProgress pr 13
       threadDelay delay
     wait a
     putStrLn ""
@@ -54,7 +54,7 @@ exampleAsync2 delay = do
     wait a
     putStrLn ""
   where
-    todo :: Integer
+    todo :: Int
     todo = fromIntegral $ numThreads * progressPerThread
 
     numThreads :: Int

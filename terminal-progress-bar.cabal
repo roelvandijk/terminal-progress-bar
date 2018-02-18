@@ -38,11 +38,12 @@ flag example
 library
     hs-source-dirs: src
     build-depends:
-        async              >= 2.1.1
-      , base               >= 3.0.3.1 && < 5
-      , stm                >= 2.4
-      , stm-chans          >= 3.0.0
-      , terminal-size      >= 0.3.2
+        async         >= 2.1.1
+      , base          >= 4.5 && < 5
+      , stm           >= 2.4
+      , stm-chans     >= 3.0.0
+      , terminal-size >= 0.3.2
+      , text          >= 1.2
     exposed-modules: System.ProgressBar
                      System.ProgressBar.State
     ghc-options: -Wall
@@ -54,11 +55,23 @@ test-suite test-terminal-progress-bar
     hs-source-dirs: test
     ghc-options: -Wall
     build-depends:
-        base                 >= 3.0.3.1 && < 5
+        base                 >= 4.5 && < 5
       , HUnit                >= 1.2.4.2
       , terminal-progress-bar
       , test-framework       >= 0.3.3
       , test-framework-hunit >= 0.2.6
+      , text                 >= 1.2
+    default-language: Haskell2010
+
+benchmark bench-terminal-progress-bar
+    type: exitcode-stdio-1.0
+    main-is: bench.hs
+    hs-source-dirs: bench
+
+    build-depends: base      >= 4.5 && < 5
+                 , criterion >= 1.1.4
+                 , terminal-progress-bar
+    ghc-options: -Wall -O2
     default-language: Haskell2010
 
 executable example
@@ -67,9 +80,9 @@ executable example
     ghc-options: -Wall
     if flag(example)
       build-depends:
-          async              >= 2.1.1
-        , base               >= 3.0.3.1 && < 5
-        , random             >= 1.1
+          async  >= 2.1.1
+        , base   >= 4.5 && < 5
+        , random >= 1.1
         , terminal-progress-bar
       buildable: True
     else

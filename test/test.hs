@@ -1,3 +1,4 @@
+{-# language OverloadedStrings #-}
 {-# language PackageImports #-}
 
 module Main where
@@ -12,6 +13,7 @@ import "test-framework" Test.Framework
     ( defaultMainWithOpts, interpretArgsOrExit, Test, testGroup )
 import "test-framework-hunit" Test.Framework.Providers.HUnit ( testCase )
 import "terminal-progress-bar" System.ProgressBar
+import qualified "text" Data.Text.Lazy as TL
 
 --------------------------------------------------------------------------------
 -- Test suite
@@ -55,11 +57,11 @@ tests =
     ]
   ]
 
-labelTest :: String -> Label -> Progress -> String -> Test
+labelTest :: String -> Label -> Progress -> TL.Text -> Test
 labelTest testName label progress expected =
     testCase testName $ assertEqual expectationError expected (label progress)
 
-eqTest :: String -> String -> Label -> Label -> Integer -> Progress -> Test
+eqTest :: String -> TL.Text -> Label -> Label -> Int -> Progress -> Test
 eqTest name expected mkPreLabel mkPostLabel width progress =
     testCase name $ assertEqual expectationError expected actual
   where
