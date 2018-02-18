@@ -1,4 +1,4 @@
-{ mkDerivation, async, base, criterion, HUnit, stdenv, stm, random
+{ mkDerivation, ansi-terminal, async, base, criterion, HUnit, stdenv, stm, random
 , stm-chans, terminal-size, test-framework, test-framework-hunit, text
 }:
 mkDerivation {
@@ -9,7 +9,7 @@ mkDerivation {
     async base stm stm-chans terminal-size text
   ];
   executableHaskellDepends = [
-    random
+    ansi-terminal async base random text
   ];
   testHaskellDepends = [
     base criterion HUnit test-framework test-framework-hunit text

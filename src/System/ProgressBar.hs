@@ -18,6 +18,7 @@ module System.ProgressBar
     , mkProgressBar
       -- * Options
     , ProgressOptions(..)
+    , EscapeCode
     , defProgressOptions
     , ProgressBarWidth(..)
       -- * Progress state
@@ -31,7 +32,7 @@ module System.ProgressBar
       -- * Auto printing
     , ProgressRef
     , startProgress
-    , incProgress
+    , updateProgress
     ) where
 
 import "async" Control.Concurrent.Async ( Async )
@@ -44,6 +45,12 @@ import "this" System.ProgressBar.State
     )
 import qualified "this" System.ProgressBar.State as State
 
+-- | A default set of progress options.
+--
+-- You can override some fields of the default instead of specifying
+-- all the fields of a 'ProgressOptions' record.
+--
+-- The default does not use any escape sequences.
 defProgressOptions :: ProgressOptions Progress
 defProgressOptions = State.defProgressOptions
 
@@ -80,6 +87,15 @@ hProgressBar = State.hProgressBar
 -- 'hProgressBar' to get automatic width.
 mkProgressBar :: ProgressOptions Progress -> Progress -> TL.Text
 mkProgressBar = State.mkProgressBar
+
+-- | An escape code is a sequence of bytes which the terminal looks
+-- for and interprets as commands, not as character codes.
+--
+-- It is vital that the output of this function, when send to the
+-- terminal, does not result in characters being drawn.
+type EscapeCode
+   = Progress -- ^ Current progress.
+  -> TL.Text -- ^ Resulting escape code. Must be non-printable.
 
 -- | A label that can be pre- or postfixed to a progress bar.
 type Label
@@ -126,22 +142,30 @@ percentage = State.percentage
 exact :: Label
 exact = State.exact
 
--- * Auto-Printing Progress
+--------------------------------------------------------------------------------
 
+-- | A reference to the state of some progress bar started with 'startProgress'.
+--
+-- This reference can be passed to 'updateProgress'.
 type ProgressRef = State.ProgressRef Progress
 
--- | Start a thread to automatically display progress. Use incProgress to step
--- the progress bar.
+-- | Start a thread to automatically display progress.
+--
+-- Use 'updateProgress' to update the progress bar.
 startProgress
     :: ProgressOptions Progress
     -> Progress -- ^ Initial progress state.
     -> IO (ProgressRef, Async ())
 startProgress = State.startProgress
 
--- | Increment the progress bar. Negative values will reverse the progress.
+-- | Updates the state of a progress bar started with 'startProgress'.
+--
 -- Progress will never be negative and will silently stop taking data
 -- when it completes.
-incProgress :: ProgressRef -> Int -> IO ()
-incProgress pr amount =
-    State.incProgress pr
+updateProgress
+    :: ProgressRef -- ^ Reference obtained from 'startProgress'.
+    -> Int -- ^ Amount by which to change the current progress.
+    -> IO ()
+updateProgress pr amount =
+    State.updateProgress pr
       (\st -> st { progressDone = progressDone st + amount })

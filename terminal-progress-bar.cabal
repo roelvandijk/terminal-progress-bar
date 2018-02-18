@@ -80,10 +80,12 @@ executable example
     ghc-options: -Wall
     if flag(example)
       build-depends:
-          async  >= 2.1.1
-        , base   >= 4.5 && < 5
-        , random >= 1.1
+          ansi-terminal >= 0.6.3
+        , async         >= 2.1.1
+        , base          >= 4.5 && < 5
+        , random        >= 1.1
         , terminal-progress-bar
+        , text          >= 1.2
       buildable: True
     else
       buildable: False

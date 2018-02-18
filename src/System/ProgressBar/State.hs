@@ -14,6 +14,7 @@ module System.ProgressBar.State
     , mkProgressBar
       -- * Options
     , ProgressOptions(..)
+    , EscapeCode
     , defProgressOptions
     , ProgressBarWidth(..)
       -- * Progress state
@@ -28,7 +29,7 @@ module System.ProgressBar.State
       -- * Auto printing
     , ProgressRef
     , startProgress
-    , incProgress
+    , updateProgress
     ) where
 
 import "async" Control.Concurrent.Async ( Async, async )
@@ -86,19 +87,26 @@ hProgressBar hndl opts st = do
 -- automatic width.
 mkProgressBar :: (HasProgress s) => ProgressOptions s -> s -> TL.Text
 mkProgressBar opts st = TL.concat
-    [ preLabel
-    , prePad
+    [ progressOptEscapePrefix opts st
+    , prefixLabel
+    , prefixPad
+    , progressOptEscapeOpen opts st
     , progressOptOpen opts
+    , progressOptEscapeDone opts st
     , TL.replicate completed $ TL.singleton $ progressOptDone opts
+    , progressOptEscapeCurrent opts st
     , if remaining /= 0 && completed /= 0
       then TL.singleton $ progressOptCurrent opts
       else ""
+    , progressOptEscapeTodo opts st
     , TL.replicate
         (remaining - if completed /= 0 then 1 else 0)
         (TL.singleton $ progressOptTodo opts)
+    , progressOptEscapeClose opts st
     , progressOptClose opts
-    , postPad
-    , postLabel
+    , progressOptEscapePostfix opts st
+    , postfixPad
+    , postfixLabel
     ]
   where
     progress = getProgress st
@@ -114,12 +122,13 @@ mkProgressBar opts st = TL.concat
 
     -- Amount of characters available to visualize the progress.
     effectiveWidth = max 0 $ width - usedSpace
+    -- Amount of printing characters needed to visualize everything except the bar .
     usedSpace =   TL.length (progressOptOpen  opts)
                 + TL.length (progressOptClose opts)
-                + TL.length preLabel
-                + TL.length postLabel
-                + TL.length prePad
-                + TL.length postPad
+                + TL.length prefixLabel
+                + TL.length postfixLabel
+                + TL.length prefixPad
+                + TL.length postfixPad
 
     -- Number of characters needed to represent the amount of work
     -- that is completed. Note that this can not always be represented
@@ -131,17 +140,17 @@ mkProgressBar opts st = TL.concat
     completed = min effectiveWidth $ floor numCompletedChars
     remaining = effectiveWidth - completed
 
-    preLabel, postLabel :: TL.Text
-    preLabel  = progressOptPrefix  opts st
-    postLabel = progressOptPostfix opts st
+    prefixLabel, postfixLabel :: TL.Text
+    prefixLabel  = progressOptPrefix  opts st
+    postfixLabel = progressOptPostfix opts st
 
-    prePad, postPad :: TL.Text
-    prePad  = pad preLabel
-    postPad = pad postLabel
+    prefixPad, postfixPad :: TL.Text
+    prefixPad  = pad prefixLabel
+    postfixPad = pad postfixLabel
 
-    pad :: TL.Text -> TL.Text
-    pad s | TL.null s = TL.empty
-          | otherwise = TL.singleton ' '
+pad :: TL.Text -> TL.Text
+pad s | TL.null s = TL.empty
+      | otherwise = TL.singleton ' '
 
 -- | Width of progress bar in characters.
 data ProgressBarWidth
@@ -182,6 +191,13 @@ This bar can be specified using the following options:
 , 'progressOptPrefix'  = 'msg' \"Working"
 , 'progressOptPostfix' = 'percentage'
 , 'progressOptWidth'   = 'ConstantWidth' 40
+, 'progressOptEscapeOpen'    = const 'TL.empty'
+, 'progressOptEscapeClose'   = const 'TL.empty'
+, 'progressOptEscapeDone'    = const 'TL.empty'
+, 'progressOptEscapeCurrent' = const 'TL.empty'
+, 'progressOptEscapeTodo'    = const 'TL.empty'
+, 'progressOptEscapePrefix'  = const 'TL.empty'
+, 'progressOptEscapePostfix' = const 'TL.empty'
 }
 @
 -}
@@ -203,19 +219,55 @@ data ProgressOptions s
        -- ^ Postfixed label.
      , progressOptWidth :: !ProgressBarWidth
        -- ^ Total width of the progress bar.
+     , progressOptEscapeOpen :: EscapeCode s
+       -- ^ Escape code printed just before the 'progressOptOpen' symbol.
+     , progressOptEscapeClose :: EscapeCode s
+       -- ^ Escape code printed just before the 'progressOptClose' symbol.
+     , progressOptEscapeDone :: EscapeCode s
+       -- ^ Escape code printed just before the first 'progressOptDone' character.
+     , progressOptEscapeCurrent :: EscapeCode s
+       -- ^ Escape code printed just before the 'progressOptCurrent' character.
+     , progressOptEscapeTodo :: EscapeCode s
+       -- ^ Escape code printed just before the first 'progressOptTodo' character.
+     , progressOptEscapePrefix :: EscapeCode s
+       -- ^ Escape code printed just before the 'progressOptPrefix' label.
+     , progressOptEscapePostfix :: EscapeCode s
+       -- ^ Escape code printed just before the 'progressOptPostfix' label.
      }
 
+-- | An escape code is a sequence of bytes which the terminal looks
+-- for and interprets as commands, not as character codes.
+--
+-- It is vital that the output of this function, when send to the
+-- terminal, does not result in characters being drawn.
+type EscapeCode s
+   = s -- ^ Current progress bar state.
+  -> TL.Text -- ^ Resulting escape code. Must be non-printable.
+
+-- | A default set of progress options.
+--
+-- You can override some fields of the default instead of specifying
+-- all the fields of a 'ProgressOptions' record.
+--
+-- The default does not use any escape sequences.
 defProgressOptions :: (HasProgress s) => ProgressOptions s
 defProgressOptions =
     ProgressOptions
-    { progressOptOpen     = "["
-    , progressOptClose    = "]"
-    , progressOptDone     = '='
-    , progressOptCurrent  = '>'
-    , progressOptTodo     = '.'
-    , progressOptPrefix   = noLabel
-    , progressOptPostfix  = percentage
-    , progressOptWidth    = TerminalWidth 50
+    { progressOptOpen          = "["
+    , progressOptClose         = "]"
+    , progressOptDone          = '='
+    , progressOptCurrent       = '>'
+    , progressOptTodo          = '.'
+    , progressOptPrefix        = noLabel
+    , progressOptPostfix       = percentage
+    , progressOptWidth         = TerminalWidth 50
+    , progressOptEscapeOpen    = const TL.empty
+    , progressOptEscapeClose   = const TL.empty
+    , progressOptEscapeDone    = const TL.empty
+    , progressOptEscapeCurrent = const TL.empty
+    , progressOptEscapeTodo    = const TL.empty
+    , progressOptEscapePrefix  = const TL.empty
+    , progressOptEscapePostfix = const TL.empty
     }
 
 -- | State of a progress bar.
@@ -299,6 +351,9 @@ exact s = TL.justifyRight (TL.length todoStr) ' ' doneStr <> "/" <> todoStr
 
 --------------------------------------------------------------------------------
 
+-- | A reference to the state of some progress bar started with 'startProgress'.
+--
+-- This reference can be passed to 'updateProgress'.
 data ProgressRef s
    = ProgressRef
      { prOptions :: !(ProgressOptions s)
@@ -306,8 +361,9 @@ data ProgressRef s
      , prQueue   :: !(TMQueue (s -> s))
      }
 
--- | Start a thread to automatically display progress. Use incProgress to step
--- the progress bar.
+-- | Start a thread to automatically display progress.
+--
+-- Use 'updateProgress' to update the progress bar.
 startProgress
     :: (HasProgress s)
     => ProgressOptions s
@@ -323,21 +379,25 @@ startProgress opts st = do
         queue <- atomically $ newTMQueue
         return $ ProgressRef opts tvSt queue
 
--- | Increment the progress bar. Negative values will reverse the progress.
+-- | Updates the state of a progress bar started with 'startProgress'.
+--
 -- Progress will never be negative and will silently stop taking data
 -- when it completes.
-incProgress :: ProgressRef s -> (s -> s) -> IO ()
-incProgress progressRef =
+updateProgress
+    :: ProgressRef s -- ^ Reference obtained from 'startProgress'.
+    -> (s -> s) -- ^ Function to update the progress state.
+    -> IO ()
+updateProgress progressRef =
     atomically . writeTMQueue (prQueue progressRef)
 
 reportProgress :: (HasProgress s) => ProgressRef s -> IO ()
 reportProgress pr = do
-    continue <- atomically $ updateProgress pr
+    continue <- atomically $ executeProgressUpdates pr
     renderProgress pr
     when continue $ reportProgress pr
 
-updateProgress :: (HasProgress s) => ProgressRef s -> STM Bool
-updateProgress pr =
+executeProgressUpdates :: (HasProgress s) => ProgressRef s -> STM Bool
+executeProgressUpdates pr =
     maybe dontContinue doUpdate =<< readTMQueue (prQueue pr)
   where
     dontContinue = return False
