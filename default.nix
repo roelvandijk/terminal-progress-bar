@@ -1,4 +1,4 @@
-{ nixpkgs ? import <nixpkgs> {}, compiler ? "default" }:
+{ nixpkgs ? import <nixpkgs> {}, compiler ? "ghc822" }:
 
 let
   inherit (nixpkgs) pkgs;
@@ -9,6 +9,4 @@ let
 
   drv = haskellPackages.callPackage (import ./terminal-progress-bar.nix) {};
 
-in if pkgs.lib.inNixShell
-   then drv.env
-   else drv
+in if pkgs.lib.inNixShell then drv.env else drv
