@@ -356,9 +356,8 @@ exact s = TL.justifyRight (TL.length todoStr) ' ' doneStr <> "/" <> todoStr
 -- This reference can be passed to 'updateProgress'.
 data ProgressRef s
    = ProgressRef
-     { prOptions :: !(ProgressOptions s)
-     , prState   :: !(TVar s)
-     , prQueue   :: !(TMQueue (s -> s))
+     { prState :: !(TVar s)
+     , prQueue :: !(TMQueue (s -> s))
      }
 
 -- | Start a thread to automatically display progress.
@@ -371,13 +370,13 @@ startProgress
     -> IO (ProgressRef s, Async ())
 startProgress opts st = do
     pr <- buildProgressRef
-    a  <- async $ reportProgress pr
-    return (pr, a)
+    a  <- async $ reportProgress opts pr
+    pure (pr, a)
     where
       buildProgressRef = do
         tvSt  <- atomically $ newTVar st
         queue <- atomically $ newTMQueue
-        return $ ProgressRef opts tvSt queue
+        pure $ ProgressRef tvSt queue
 
 -- | Updates the state of a progress bar started with 'startProgress'.
 --
@@ -390,11 +389,11 @@ updateProgress
 updateProgress progressRef =
     atomically . writeTMQueue (prQueue progressRef)
 
-reportProgress :: (HasProgress s) => ProgressRef s -> IO ()
-reportProgress pr = do
+reportProgress :: (HasProgress s) => ProgressOptions s -> ProgressRef s -> IO ()
+reportProgress opts pr = do
     continue <- atomically $ executeProgressUpdates pr
-    renderProgress pr
-    when continue $ reportProgress pr
+    renderProgress opts pr
+    when continue $ reportProgress opts pr
 
 executeProgressUpdates :: (HasProgress s) => ProgressRef s -> STM Bool
 executeProgressUpdates pr =
@@ -413,7 +412,7 @@ executeProgressUpdates pr =
         then closeTMQueue (prQueue pr) >> dontContinue
         else return True
 
-renderProgress :: (HasProgress s) => ProgressRef s -> IO ()
-renderProgress pr = do
+renderProgress :: (HasProgress s) => ProgressOptions s -> ProgressRef s -> IO ()
+renderProgress opts pr = do
     st <- atomically $ readTVar $ prState pr
-    progressBar (prOptions pr) st
+    progressBar opts st
