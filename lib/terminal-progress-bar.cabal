@@ -1,5 +1,5 @@
 name:          terminal-progress-bar
-version:       0.3
+version:       0.4
 cabal-version: >=1.10
 build-type:    Simple
 stability:     provisional
@@ -17,8 +17,7 @@ description:
   package implements a very simple textual progress bar.
   .
   See the module 'System.ProgressBar' on how to use the progress bar
-  or build the package with the -fexample flag for a small example
-  program.
+  or look at the terminal-progress-bar-example package.
   .
   The animated progress bar depends entirely on the interpretation of
   the carriage return character (\'\\r\'). If your terminal interprets
@@ -31,21 +30,15 @@ source-repository head
   type:     git
   location: git://github.com/roelvandijk/terminal-progress-bar.git
 
-flag example
-  description: Build a small example program.
-  default: False
-
 library
     hs-source-dirs: src
     build-depends:
-        async         >= 2.1.1
-      , base          >= 4.5 && < 5
-      , stm           >= 2.4
-      , stm-chans     >= 3.0.0
+        base          >= 4.5 && < 5
+      , deepseq       >= 1.4.3
       , terminal-size >= 0.3.2
       , text          >= 1.2
+      , time          >= 1.8
     exposed-modules: System.ProgressBar
-                     System.ProgressBar.State
     ghc-options: -Wall
     default-language: Haskell2010
 
@@ -61,6 +54,7 @@ test-suite test-terminal-progress-bar
       , test-framework       >= 0.3.3
       , test-framework-hunit >= 0.2.6
       , text                 >= 1.2
+      , time                 >= 1.8
     default-language: Haskell2010
 
 benchmark bench-terminal-progress-bar
@@ -68,25 +62,10 @@ benchmark bench-terminal-progress-bar
     main-is: bench.hs
     hs-source-dirs: bench
 
-    build-depends: base      >= 4.5 && < 5
-                 , criterion >= 1.1.4
-                 , terminal-progress-bar
+    build-depends:
+        base      >= 4.5 && < 5
+      , criterion >= 1.1.4
+      , terminal-progress-bar
+      , time      >= 1.8
     ghc-options: -Wall -O2
-    default-language: Haskell2010
-
-executable example
-    main-is: example.hs
-    hs-source-dirs: .
-    ghc-options: -Wall
-    if flag(example)
-      build-depends:
-          ansi-terminal >= 0.6.3
-        , async         >= 2.1.1
-        , base          >= 4.5 && < 5
-        , random        >= 1.1
-        , terminal-progress-bar
-        , text          >= 1.2
-      buildable: True
-    else
-      buildable: False
     default-language: Haskell2010
