@@ -60,7 +60,7 @@ exampleAsync :: Int -> Int -> IO ()
 exampleAsync todo delay = do
     pb <- newProgressBar exampleStyle 30 (Progress 0 todo ())
     for_ [1 .. todo] $ \_done -> do
-      updateProgress pb $ \p -> p{progressDone = progressDone p + 1}
+      incProgress pb 1
       threadDelay delay
     putStrLn ""
 
@@ -71,7 +71,7 @@ exampleAsync2 delay = do
     threads <- for [1 .. numThreads] $ \_ ->
       Async.async $
         for_ [1 .. progressPerThread] $ \_ -> do
-          updateProgress pb $ \p -> p{progressDone = progressDone p + 1}
+          incProgress pb 1
           d <- randomRIO (delay * numThreads, 2 * delay * numThreads)
           threadDelay d
 
