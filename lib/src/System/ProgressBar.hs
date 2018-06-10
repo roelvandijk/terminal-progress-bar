@@ -11,6 +11,7 @@ module System.ProgressBar
     , hNewProgressBar
     , renderProgressBar
     , updateProgress
+    , incProgress
       -- * Options
     , Style(..)
     , EscapeCode
@@ -84,8 +85,8 @@ data Progress s
        -- Simply use '()' if you do not need custom progress values.
      }
 
-progressCompleted :: Progress s -> Bool
-progressCompleted p = progressDone p >= progressTodo p
+progressFinished :: Progress s -> Bool
+progressFinished p = progressDone p >= progressTodo p
 
 newProgressBar
     :: Style s
@@ -149,9 +150,9 @@ updateProgress progressBar f = do
                  , timingLastUpdate = updateTime
                  }
 
-        shouldRender = not tooFast || completed
+        shouldRender = not tooFast || finished
         tooFast = secSinceLastRender <= pbRefreshDelay progressBar
-        completed = progressCompleted newProgress
+        finished = progressFinished newProgress
 
         newProgress = f $ stProgress state
 
@@ -161,11 +162,16 @@ updateProgress progressBar f = do
 
     hndl = pbHandle progressBar
 
+incProgress :: ProgressBar s -> Int -> IO ()
+incProgress pb n = updateProgress pb $ \p -> p{ progressDone = progressDone p + n }
+
 hPutProgressBar :: Handle -> Style s -> Progress s -> Timing -> IO ()
 hPutProgressBar hndl style progress timing = do
-    TL.hPutStr hndl "\r"
     TL.hPutStr hndl $ renderProgressBar style progress timing
-    when (progressCompleted progress) $ TL.hPutStr hndl "\n"
+    TL.hPutStr hndl $
+      if progressFinished progress
+      then "\n"
+      else "\r"
     hFlush hndl
 
 -- | Renders a progress bar
