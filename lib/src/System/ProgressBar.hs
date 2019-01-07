@@ -4,8 +4,17 @@
 {-# language PackageImports #-}
 {-# language ScopedTypeVariables #-}
 
+{- |
+A simple progress bar in the terminal.
+
+A progress bar is used to convey the progress of a task. This module
+implements a very simple textual progress bar.
+-}
 module System.ProgressBar
-    ( -- * Progress bars
+    ( -- * How to use this library
+      -- $use
+
+      -- * Progress bars
       ProgressBar
     , newProgressBar
     , hNewProgressBar
@@ -50,6 +59,12 @@ import "time" Data.Time.Clock ( UTCTime, NominalDiffTime, diffUTCTime, getCurren
 
 --------------------------------------------------------------------------------
 
+-- | A terminal progress bar.
+--
+-- A 'ProgressBar' value contains the state of a progress bar.
+--
+-- It is produced by 'newProgressBar' and 'hNewProgressBar'.
+-- It is updated by 'updateProgress' and 'incProgress'.
 data ProgressBar s
    = ProgressBar
      { pbStyle :: !(Style s)
@@ -67,13 +82,16 @@ instance (NFData s) => NFData (ProgressBar s) where
         -- pbHandle is ignored
         `seq` ()
 
+-- | State of a progress bar.
 data State s
    = State
      { stProgress :: !(Progress s)
+       -- ^ Current progress.
      , stRenderTime :: !UTCTime
+       -- ^ Moment in time of last render.
      }
 
--- | State of a progress bar.
+-- | An amount of progress.
 data Progress s
    = Progress
      { progressDone :: !Int
@@ -88,16 +106,31 @@ data Progress s
 progressFinished :: Progress s -> Bool
 progressFinished p = progressDone p >= progressTodo p
 
+-- | Creates a new progress bar.
+--
+-- The progress bar is drawn immediately. You can update the progress
+-- bar using 'updateProgress' or 'incProgress'. You shouldn't output
+-- anything to your terminal between updates. It will mess up the
+-- animation.
+--
+-- The progress bar is written to 'stderr'. Use 'hNewProgressBar' if
+-- you would like the progress bar output send to another handle.
 newProgressBar
-    :: Style s
+    :: Style s -- ^ Visual style of the progress bar.
     -> Double -- ^ Maximum refresh rate in Hertz.
     -> Progress s -- ^ Initial progress.
     -> IO (ProgressBar s)
 newProgressBar = hNewProgressBar stderr
 
+-- | Creates a new progress bar on a given handle.
+--
+-- See 'newProgressBar' for more information.
 hNewProgressBar
     :: Handle
-    -> Style s
+       -- ^ File handle on which the progress bar is drawn. Usually
+       -- you would select a standard stream like 'stderr' or
+       -- 'stdout'.
+    -> Style s -- ^ Visual style of the progress bar.
     -> Double -- ^ Maximum refresh rate in Hertz.
     -> Progress s -- ^ Initial progress.
     -> IO (ProgressBar s)
@@ -120,6 +153,8 @@ hNewProgressBar hndl style maxRefreshRate initProgress = do
          , pbHandle = hndl
          }
 
+-- | Update a style using information retrieved from the active
+-- terminal, if possible.
 updateWidth :: Style s -> IO (Style s)
 updateWidth style =
     case styleWidth style of
@@ -130,8 +165,18 @@ updateWidth style =
           Nothing -> style
           Just window -> style{ styleWidth = TerminalWidth (TS.width window) }
 
+-- | Change the progress of an existing progress bar.
+--
+-- This will cause the progress bar to be redrawn. If updates occur to
+-- fast some updates will not be drawn.
+--
+-- This function is thread safe, but blocking. Multiple threads may
+-- update a single progress bar at the same time.
 updateProgress
-    :: forall s. ProgressBar s -> (Progress s -> Progress s) -> IO ()
+    :: forall s
+     . ProgressBar s -- ^ Progress bar which needs an update.
+    -> (Progress s -> Progress s) -- ^ Function to change the progress.
+    -> IO ()
 updateProgress progressBar f = do
     updateTime <- getCurrentTime
     modifyMVar_ (pbStateMv progressBar) $ renderAndUpdate updateTime
@@ -162,7 +207,13 @@ updateProgress progressBar f = do
 
     hndl = pbHandle progressBar
 
-incProgress :: ProgressBar s -> Int -> IO ()
+-- | Increment the progress of an existing progress bar.
+--
+-- See 'updateProgress' for more information.
+incProgress
+    :: ProgressBar s -- ^ Progress bar which needs an update.
+    -> Int -- ^ Amount by which the increment the progress.
+    -> IO ()
 incProgress pb n = updateProgress pb $ \p -> p{ progressDone = progressDone p + n }
 
 hPutProgressBar :: Handle -> Style s -> Progress s -> Timing -> IO ()
@@ -174,10 +225,11 @@ hPutProgressBar hndl style progress timing = do
       else "\r"
     hFlush hndl
 
--- | Renders a progress bar
+-- | Renders a progress bar.
 --
--- >>> renderProgressBar (msg "Working") percentage 40 30 100
--- "Working [=======>.................]  30%"
+-- >>> let t = UTCTime (ModifiedJulianDay 0) 0
+-- >>> renderProgressBar defStyle (Progress 30 100 ()) (Timing t t)
+-- "[============>..............................]  30%"
 --
 -- Not that this function can not use 'TerminalWidth' because it
 -- doesn't use 'IO'. Use 'progressBar' or 'hProgressBar' to get
@@ -384,10 +436,16 @@ instance Monoid (Label s) where
 instance IsString (Label s) where
     fromString = msg . TL.pack
 
+-- | Timing information related to a 'ProgressBar'.
+--
+-- This information is used by 'Label's to calculate elapsed time, remaining time, total time, etc.
 data Timing
    = Timing
-     { timingStart      :: !UTCTime
+     { timingStart :: !UTCTime
+       -- ^ Moment in time when a progress bar was created. See
+       -- 'newProgressBar'.
      , timingLastUpdate :: !UTCTime
+       -- ^ Moment in time of the most recent progress update.
      }
 
 -- | A label consisting of a static string.
@@ -558,3 +616,50 @@ renderDuration dt = hTxt <> mTxt <> sTxt
     ts = round dt
 
     renderDecimal n = TL.justifyRight 2 '0' $ TLB.toLazyText $ TLB.decimal n
+
+{- $use
+
+We want to perform some task which we expect to take some time. We
+wish to show the progress of this task in the terminal.
+
+First we write a dummy function which represents a unit of work. This
+could be a file copy operation, a network operation or some other
+expensive calculation. In this example we simply wait 1 second.
+
+@
+  work :: IO ()
+  work = threadDelay 1000000 -- 1 second
+@
+
+And we define some work to be done.
+
+@
+  toBeDone :: [()]
+  toBeDone = replicate 20 ()
+@
+
+Now we create a progress bar in the terminal. We use the default style
+and choose a maximum refresh rate of 10 Hz. The initial progress is 0
+work done out of 20.
+
+@
+  pb <- 'newProgressBar' 'defStyle' 10 ('Progress' 0 20 ())
+@
+
+Let's start working while keeping the user informed of the progress:
+
+@
+  for_ toBeDone $ \() -> do
+    work             -- perform 1 unit of work
+    'incProgress' pb 1 -- increment progress by 1
+@
+
+That's it! You get a nice animated progress bar in your terminal.
+
+You do not have to close the progress bar, or even finish the task. It
+is perfectly fine to stop half way (maybe your task throws an
+exception).
+
+Just remember to avoid outputting text to the terminal while a
+progress bar is active. It will mess up the output a bit.
+-}
