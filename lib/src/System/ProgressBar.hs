@@ -654,7 +654,15 @@ Let's start working while keeping the user informed of the progress:
     'incProgress' pb 1 -- increment progress by 1
 @
 
-That's it! You get a nice animated progress bar in your terminal.
+That's it! You get a nice animated progress bar in your terminal. It
+will look something like this:
+
+@
+[==========>................................]  25%
+@
+
+Explore the 'Style' and the 'Label' types to see various ways in which
+you can customize the way the progress bar looks.
 
 You do not have to close the progress bar, or even finish the task. It
 is perfectly fine to stop half way (maybe your task throws an
