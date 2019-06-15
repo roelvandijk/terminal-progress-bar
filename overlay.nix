@@ -5,12 +5,14 @@ final : previous : with final.haskell.lib; {
         let src = previous.runCommand "terminal-progress-bar-src" {
                     lib     = ./lib;
                     LICENSE = ./LICENSE;
+                    CHANGELOG = ./changelog.md;
                   } ''
                   mkdir -p $out
                   cp -r $lib/src   $out/src
                   cp -r $lib/test  $out/test
                   cp -r $lib/bench $out/bench
                   cp $LICENSE $out/LICENSE
+                  cp $CHANGELOG $out/CHANGELOG
                   cp $lib/terminal-progress-bar.cabal $out
                   '';
         in doBenchmark (super.callCabal2nix "terminal-progress-bar" src {});

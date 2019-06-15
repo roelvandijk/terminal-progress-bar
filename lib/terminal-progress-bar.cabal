@@ -23,7 +23,7 @@ description:
   it as something else than \"move cursor to beginning of line\", the
   animation won't work.
 
-extra-source-files: LICENSE, README.markdown
+extra-source-files: LICENSE, README.markdown, changelog.md
 
 source-repository head
   type:     git
