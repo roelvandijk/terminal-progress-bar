@@ -1,5 +1,5 @@
 name:          terminal-progress-bar
-version:       0.4.0.2
+version:       0.4.1
 cabal-version: >=1.10
 build-type:    Simple
 author:        Roel van Dijk <roel@lambdacube.nl>

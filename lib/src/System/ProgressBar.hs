@@ -27,6 +27,7 @@ module System.ProgressBar
       -- * Options
     , Style(..)
     , EscapeCode
+    , OnComplete(..)
     , defStyle
     , ProgressBarWidth(..)
       -- * Progress
@@ -221,7 +222,11 @@ hPutProgressBar hndl style progress timing = do
     TL.hPutStr hndl $ renderProgressBar style progress timing
     TL.hPutStr hndl $
       if progressFinished progress
-      then "\n"
+      then case styleOnComplete style of
+             WriteNewline -> "\n"
+             -- Move to beginning of line and then clear everything to
+             -- the right of the cursor.
+             Clear -> "\r\ESC[K"
       else "\r"
     hFlush hndl
 
@@ -354,6 +359,7 @@ This bar can be specified using the following style:
 , 'styleEscapeTodo'    = const 'TL.empty'
 , 'styleEscapePrefix'  = const 'TL.empty'
 , 'styleEscapePostfix' = const 'TL.empty'
+, 'styleOnComplete' = 'WriteNewline'
 }
 @
 -}
@@ -389,6 +395,8 @@ data Style s
        -- ^ Escape code printed just before the 'stylePrefix' label.
      , styleEscapePostfix :: EscapeCode s
        -- ^ Escape code printed just before the 'stylePostfix' label.
+     , styleOnComplete :: !OnComplete
+       -- ^ What happens when progress is finished.
      } deriving (Generic)
 
 instance (NFData s) => NFData (Style s)
@@ -401,6 +409,16 @@ instance (NFData s) => NFData (Style s)
 type EscapeCode s
    = Progress s -- ^ Current progress bar state.
   -> TL.Text -- ^ Resulting escape code. Must be non-printable.
+
+-- | What happens when a progress bar is finished.
+data OnComplete
+   = WriteNewline
+     -- ^ Write a new line when the progress bar is finished. The
+     -- completed progress bar will remain visible.
+   | Clear -- ^ Clear the progress bar once it is finished.
+     deriving (Generic)
+
+instance NFData OnComplete
 
 -- | The default style.
 --
@@ -427,6 +445,7 @@ defStyle =
     , styleEscapeTodo    = const TL.empty
     , styleEscapePrefix  = const TL.empty
     , styleEscapePostfix = const TL.empty
+    , styleOnComplete    = WriteNewline
     }
 
 -- | A label is a part of a progress bar that changes based on the progress.
