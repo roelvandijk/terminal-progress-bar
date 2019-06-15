@@ -5,14 +5,17 @@
 {-# language ScopedTypeVariables #-}
 
 {- |
-A simple progress bar in the terminal.
+A progress bar in the terminal.
 
-A progress bar is used to convey the progress of a task. This module
-implements a very simple textual progress bar.
+A progress bar conveys the progress of a task. Use a progress bar to
+provide a visual cue that processing is underway.
 -}
 module System.ProgressBar
-    ( -- * How to use this library
-      -- $use
+    ( -- * Getting started
+      -- $start
+
+      -- * Example
+      -- $example
 
       -- * Progress bars
       ProgressBar
@@ -63,8 +66,8 @@ import "time" Data.Time.Clock ( UTCTime, NominalDiffTime, diffUTCTime, getCurren
 --
 -- A 'ProgressBar' value contains the state of a progress bar.
 --
--- It is produced by 'newProgressBar' and 'hNewProgressBar'.
--- It is updated by 'updateProgress' and 'incProgress'.
+-- Create a progress bar with 'newProgressBar' or 'hNewProgressBar'.
+-- Update a progress bar with 'updateProgress' or 'incProgress'.
 data ProgressBar s
    = ProgressBar
      { pbStyle :: !(Style s)
@@ -99,22 +102,22 @@ data Progress s
      , progressTodo :: !Int
        -- ^ Total amount of work.
      , progressCustom :: !s
-       -- ^ A custom value which can be used by custom labels.
-       -- Simply use '()' if you do not need custom progress values.
+       -- ^ A value which is used by custom labels. The builtin labels
+       -- do not care about this field. You can ignore it by using the
+       -- unit value '()'.
      }
 
 progressFinished :: Progress s -> Bool
 progressFinished p = progressDone p >= progressTodo p
 
--- | Creates a new progress bar.
+-- | Creates a progress bar.
 --
--- The progress bar is drawn immediately. You can update the progress
--- bar using 'updateProgress' or 'incProgress'. You shouldn't output
--- anything to your terminal between updates. It will mess up the
--- animation.
+-- The progress bar is drawn immediately. Update the progress bar with
+-- 'updateProgress' or 'incProgress'. Do not output anything to your
+-- terminal between updates. It will mess up the animation.
 --
--- The progress bar is written to 'stderr'. Use 'hNewProgressBar' if
--- you would like the progress bar output send to another handle.
+-- The progress bar is written to 'stderr'. Write to another handle
+-- with 'hNewProgressBar'.
 newProgressBar
     :: Style s -- ^ Visual style of the progress bar.
     -> Double -- ^ Maximum refresh rate in Hertz.
@@ -122,14 +125,13 @@ newProgressBar
     -> IO (ProgressBar s)
 newProgressBar = hNewProgressBar stderr
 
--- | Creates a new progress bar on a given handle.
+-- | Creates a progress bar which outputs to the given handle.
 --
--- See 'newProgressBar' for more information.
+-- See 'newProgressBar'.
 hNewProgressBar
     :: Handle
        -- ^ File handle on which the progress bar is drawn. Usually
-       -- you would select a standard stream like 'stderr' or
-       -- 'stdout'.
+       -- you select a standard stream like 'stderr' or 'stdout'.
     -> Style s -- ^ Visual style of the progress bar.
     -> Double -- ^ Maximum refresh rate in Hertz.
     -> Progress s -- ^ Initial progress.
@@ -153,8 +155,7 @@ hNewProgressBar hndl style maxRefreshRate initProgress = do
          , pbHandle = hndl
          }
 
--- | Update a style using information retrieved from the active
--- terminal, if possible.
+-- | Update the width based on the current terminal.
 updateWidth :: Style s -> IO (Style s)
 updateWidth style =
     case styleWidth style of
@@ -165,16 +166,15 @@ updateWidth style =
           Nothing -> style
           Just window -> style{ styleWidth = TerminalWidth (TS.width window) }
 
--- | Change the progress of an existing progress bar.
+-- | Change the progress of a progress bar.
 --
--- This will cause the progress bar to be redrawn. If updates occur to
--- fast some updates will not be drawn.
+-- This function is thread safe. Multiple threads may update a single
+-- progress bar at the same time.
 --
--- This function is thread safe, but blocking. Multiple threads may
--- update a single progress bar at the same time.
+-- There is a maximum refresh rate. This means that some updates might not be drawn.
 updateProgress
     :: forall s
-     . ProgressBar s -- ^ Progress bar which needs an update.
+     . ProgressBar s -- ^ Progress bar to update.
     -> (Progress s -> Progress s) -- ^ Function to change the progress.
     -> IO ()
 updateProgress progressBar f = do
@@ -212,7 +212,7 @@ updateProgress progressBar f = do
 -- See 'updateProgress' for more information.
 incProgress
     :: ProgressBar s -- ^ Progress bar which needs an update.
-    -> Int -- ^ Amount by which the increment the progress.
+    -> Int -- ^ Amount by which to increment the progress.
     -> IO ()
 incProgress pb n = updateProgress pb $ \p -> p{ progressDone = progressDone p + n }
 
@@ -231,10 +231,14 @@ hPutProgressBar hndl style progress timing = do
 -- >>> renderProgressBar defStyle (Progress 30 100 ()) (Timing t t)
 -- "[============>..............................]  30%"
 --
--- Not that this function can not use 'TerminalWidth' because it
--- doesn't use 'IO'. Use 'progressBar' or 'hProgressBar' to get
+-- Note that this function can not use 'TerminalWidth' because it
+-- doesn't use 'IO'. Use 'newProgressBar' or 'hNewProgressBar' to get
 -- automatic width.
-renderProgressBar :: Style s -> Progress s -> Timing -> TL.Text
+renderProgressBar
+    :: Style s
+    -> Progress s -- ^ Current progress.
+    -> Timing -- ^ Timing information.
+    -> TL.Text -- ^ Textual representation of the 'Progress' in the given 'Style'.
 renderProgressBar style progress timing = TL.concat
     [ styleEscapePrefix style progress
     , prefixLabel
@@ -317,8 +321,9 @@ getProgressBarWidth :: ProgressBarWidth -> Int
 getProgressBarWidth (ConstantWidth n) = n
 getProgressBarWidth (TerminalWidth n) = n
 
-{- | Options that determine the textual representation of a progress
-bar.
+{- | Visual style of a progress bar.
+
+The style determines how a progress bar is rendered to text.
 
 The textual representation of a progress bar follows the following template:
 
@@ -397,12 +402,13 @@ type EscapeCode s
    = Progress s -- ^ Current progress bar state.
   -> TL.Text -- ^ Resulting escape code. Must be non-printable.
 
--- | A default style.
+-- | The default style.
 --
--- You can override some fields of the default instead of specifying
--- all the fields of a 'Style' record.
+-- This style shows the progress as a percentage. It does not use any
+-- escape sequences.
 --
--- The default does not use any escape sequences.
+-- Override some fields of the default instead of specifying all the
+-- fields of a 'Style' record.
 defStyle :: Style s
 defStyle =
     Style
@@ -423,22 +429,33 @@ defStyle =
     , styleEscapePostfix = const TL.empty
     }
 
--- | A label that can be pre- or postfixed to a progress bar.
+-- | A label is a part of a progress bar that changes based on the progress.
+--
+-- Labels can be at the front (prefix) or at the back (postfix) of a progress bar.
+--
+-- Labels can use both the current amount of progress and the timing
+-- information to generate some text.
 newtype Label s = Label{ runLabel :: Progress s -> Timing -> TL.Text } deriving (NFData)
 
+-- | Combining labels combines their output.
 instance Semigroup (Label s) where
     Label f <> Label g = Label $ \p t -> f p t <> g p t
 
+-- | The mempty label always outputs an empty text.
 instance Monoid (Label s) where
     mempty = msg TL.empty
     mappend = (<>)
 
+-- | Every string is a label which ignores its input and just outputs
+-- that string.
 instance IsString (Label s) where
     fromString = msg . TL.pack
 
--- | Timing information related to a 'ProgressBar'.
+-- | Timing information about a 'ProgressBar'.
 --
 -- This information is used by 'Label's to calculate elapsed time, remaining time, total time, etc.
+--
+-- See 'elapsedTime', 'remainingTime' and 'totalTime'.
 data Timing
    = Timing
      { timingStart :: !UTCTime
@@ -448,20 +465,22 @@ data Timing
        -- ^ Moment in time of the most recent progress update.
      }
 
--- | A label consisting of a static string.
+-- | Static text.
+--
+-- The output does not depend on the input.
 --
 -- >>> msg "foo" st
 -- "foo"
 msg :: TL.Text -> Label s
 msg s = Label $ \_ _ -> s
 
--- | A label which displays the progress as a percentage.
+-- | Progress as a percentage.
 --
 -- >>> runLabel $ percentage (Progress 30 100 ()) someTiming
 -- " 30%"
 --
 -- __Note__: if no work is to be done (todo == 0) the percentage will
--- always be 100%.
+-- be shown as 100%.
 percentage :: Label s
 percentage = Label render
   where
@@ -474,11 +493,7 @@ percentage = Label render
         done = progressDone progress
         todo = progressTodo progress
 
--- | A label which displays the progress as a fraction of the total
--- amount of work.
---
--- Equal width property - the length of the resulting label is a function of the
--- total amount of work:
+-- | Progress as a fraction of the total amount of work.
 --
 -- >>> runLabel $ exact (Progress 30 100 ()) someTiming
 -- " 30/100"
@@ -494,7 +509,7 @@ exact = Label render
         done = progressDone progress
         todo = progressTodo progress
 
--- | A label which displays the amount of time that has elapsed.
+-- | Amount of time that has elapsed.
 --
 -- Time starts when a progress bar is created.
 --
@@ -511,20 +526,20 @@ elapsedTime formatNDT = Label render
         dt :: NominalDiffTime
         dt = diffUTCTime (timingLastUpdate timing) (timingStart timing)
 
--- | Displays the estimated remaining time until all work is done.
+-- | Estimated remaining time.
 --
--- Tells you how much longer some task will take.
+-- Tells you how much longer some task is expected to take.
 --
--- This label uses a really simple estimation algorithm. It assumes
--- progress is linear. To prevent nonsense results it won't estimate
--- remaining time until at least 1 second of work has been done.
+-- This label uses a simple estimation algorithm. It assumes progress
+-- is linear. To prevent nonsense results it won't estimate remaining
+-- time until at least 1 second of work has been done.
 --
 -- When it refuses to estimate the remaining time it will show an
 -- alternative message instead.
 --
 -- The user must supply a function which actually renders the amount
--- of time that has elapsed. You can use 'renderDuration' or
--- @formatTime@ from time >= 1.9.
+-- of time that has elapsed. Use 'renderDuration' or @formatTime@ from
+-- the time >= 1.9 package.
 remainingTime
     :: (NominalDiffTime -> TL.Text)
     -> TL.Text
@@ -550,18 +565,18 @@ remainingTime formatNDT altMsg = Label render
         dt :: NominalDiffTime
         dt = diffUTCTime (timingLastUpdate timing) (timingStart timing)
 
--- | Displays the estimated total time a task will take.
+-- | Estimated total time.
 --
--- This label uses a really simple estimation algorithm. It assumes
--- progress is linear. To prevent nonsense results it won't estimate
--- the total time until at least 1 second of work has been done.
+-- This label uses a simple estimation algorithm. It assumes progress
+-- is linear. To prevent nonsense results it won't estimate the total
+-- time until at least 1 second of work has been done.
 --
 -- When it refuses to estimate the total time it will show an
 -- alternative message instead.
 --
 -- The user must supply a function which actually renders the total
 -- amount of time that a task will take. You can use 'renderDuration'
--- or @formatTime@ from time >= 1.9.
+-- or @formatTime@ from the time >= 1.9 package.
 totalTime
     :: (NominalDiffTime -> TL.Text)
     -> TL.Text
@@ -617,36 +632,60 @@ renderDuration dt = hTxt <> mTxt <> sTxt
 
     renderDecimal n = TL.justifyRight 2 '0' $ TLB.toLazyText $ TLB.decimal n
 
-{- $use
+{- $start
 
-We want to perform some task which we expect to take some time. We
-wish to show the progress of this task in the terminal.
+You want to perform some task which will take some time. You wish to
+show the progress of this task in the terminal.
 
-First we write a dummy function which represents a unit of work. This
-could be a file copy operation, a network operation or some other
-expensive calculation. In this example we simply wait 1 second.
+    1. Determine the total amount of work
+
+    2. Create a progress bar with 'newProgressBar'
+
+    3. For each unit of work:
+
+        3a. Perform the work
+
+        3b. Update the progress bar with 'incProgress'
+
+Explore the 'Style' and the 'Label' types to see various ways in which
+you can customize the progress bar.
+
+You do not have to close the progress bar, or even finish the task. It
+is perfectly fine to stop half way (maybe your task throws an
+exception).
+
+Just remember to avoid outputting text to the terminal while a
+progress bar is active. It will mess up the output a bit.
+-}
+
+{- $example
+
+Write a function which represents a unit of work. This could be a file
+copy operation, a network operation or some other expensive
+calculation. This example simply waits 1 second.
 
 @
   work :: IO ()
   work = threadDelay 1000000 -- 1 second
 @
 
-And we define some work to be done.
+And you define some work to be done. This could be a list of files to
+process or some jobs that need to be processed.
 
 @
   toBeDone :: [()]
   toBeDone = replicate 20 ()
 @
 
-Now we create a progress bar in the terminal. We use the default style
-and choose a maximum refresh rate of 10 Hz. The initial progress is 0
-work done out of 20.
+Now create the progress bar. Use the default style and choose a
+maximum refresh rate of 10 Hz. The initial progress is 0 work done out
+of 20.
 
 @
   pb <- 'newProgressBar' 'defStyle' 10 ('Progress' 0 20 ())
 @
 
-Let's start working while keeping the user informed of the progress:
+Start performing the work while keeping the user informed of the progress:
 
 @
   for_ toBeDone $ \() -> do
@@ -655,19 +694,9 @@ Let's start working while keeping the user informed of the progress:
 @
 
 That's it! You get a nice animated progress bar in your terminal. It
-will look something like this:
+will look like this:
 
 @
 [==========>................................]  25%
 @
-
-Explore the 'Style' and the 'Label' types to see various ways in which
-you can customize the way the progress bar looks.
-
-You do not have to close the progress bar, or even finish the task. It
-is perfectly fine to stop half way (maybe your task throws an
-exception).
-
-Just remember to avoid outputting text to the terminal while a
-progress bar is active. It will mess up the output a bit.
 -}

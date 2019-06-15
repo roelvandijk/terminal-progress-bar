@@ -1,5 +1,5 @@
 name:          terminal-progress-bar
-version:       0.4.0.1
+version:       0.4.0.2
 cabal-version: >=1.10
 build-type:    Simple
 stability:     provisional
@@ -11,13 +11,13 @@ license-file:  LICENSE
 category:      System, User Interfaces
 homepage:      https://github.com/roelvandijk/terminal-progress-bar
 bug-reports:   https://github.com/roelvandijk/terminal-progress-bar/issues
-synopsis:      A simple progress bar in the terminal
+synopsis:      A progress bar in the terminal
 description:
-  A progress bar is used to convey the progress of a task. This
-  package implements a very simple textual progress bar.
+  A progress bar conveys the progress of a task. This package
+  implements a progress bar that is displayed in a terminal.
   .
-  See the module 'System.ProgressBar' on how to use the progress bar
-  or look at the terminal-progress-bar-example package.
+  See the module 'System.ProgressBar' to get started or look at the
+  terminal-progress-bar-example package.
   .
   The animated progress bar depends entirely on the interpretation of
   the carriage return character (\'\\r\'). If your terminal interprets
