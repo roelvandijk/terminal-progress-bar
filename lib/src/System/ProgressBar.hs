@@ -578,6 +578,7 @@ remainingTime formatNDT altMsg = Label render
         progressFraction :: NominalDiffTime
         progressFraction
           | progressTodo progress <= 0 = 1
+          | progressDone progress <= 0 = 1
           | otherwise = fromIntegral (progressDone progress)
                       / fromIntegral (progressTodo progress)
 
