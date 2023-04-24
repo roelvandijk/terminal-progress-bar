@@ -9,13 +9,14 @@ module Main where
 
 import "base" System.Environment ( getArgs )
 import "base" Data.Semigroup ( (<>) )
+import "base" Data.Fixed (Pico)
 import "HUnit" Test.HUnit.Base ( assertEqual )
 import "test-framework" Test.Framework
     ( defaultMainWithOpts, interpretArgsOrExit, Test, testGroup )
 import "test-framework-hunit" Test.Framework.Providers.HUnit ( testCase )
 import "terminal-progress-bar" System.ProgressBar
 import qualified "text" Data.Text.Lazy as TL
-import "time" Data.Time.Clock ( UTCTime(..), NominalDiffTime )
+import "time" Data.Time (UTCTime(..), NominalDiffTime, formatTime, defaultTimeLocale, addUTCTime, secondsToNominalDiffTime)
 
 --------------------------------------------------------------------------------
 -- Test suite
@@ -62,11 +63,21 @@ tests =
                (exact <> msg " - " <> percentage)
                mempty 20 $ Progress 1 2 ()
       ]
-    , testGroup "rendeRuration"
+    , testGroup "renderDuration"
       [ renderDurationTest 42 "42"
       , renderDurationTest (5 * 60 + 42) "05:42"
       , renderDurationTest (8 * 60 * 60 + 5 * 60 + 42) "08:05:42"
       , renderDurationTest (123 * 60 * 60 + 59 * 60 + 59) "123:59:59"
+      ]
+    , testGroup "remainingTime"
+      [ labelTestWithTiming "No progress after no time" remainingTimeLabel (Progress 0 100 ()) (elapsedSecsTiming 0) "Estimating"
+      , labelTestWithTiming "No progress after some time" remainingTimeLabel (Progress 0 100 ()) (elapsedSecsTiming 10) "Estimating"
+      , labelTestWithTiming "Some progress after no time" remainingTimeLabel (Progress 50 100 ()) (elapsedSecsTiming 0) "Estimating"
+      , labelTestWithTiming "Some progress after some time" remainingTimeLabel (Progress 50 100 ()) (elapsedSecsTiming 10) "10"
+      , labelTestWithTiming "No work to be done after no time" remainingTimeLabel (Progress 0 0 ()) (elapsedSecsTiming 0) "Estimating"
+      , labelTestWithTiming "No work to be done after some time" remainingTimeLabel (Progress 0 0 ()) (elapsedSecsTiming 10) "Estimating"
+      , labelTestWithTiming "More progress than work to be done after no time" remainingTimeLabel (Progress 50 0 ()) (elapsedSecsTiming 0) "Estimating"
+      , labelTestWithTiming "More progress than work to be done after some time" remainingTimeLabel (Progress 50 0 ()) (elapsedSecsTiming 10) "0"
       ]
     ]
   ]
@@ -74,6 +85,10 @@ tests =
 labelTest :: String -> Label () -> Progress () -> TL.Text -> Test
 labelTest testName label progress expected =
     testCase testName $ assertEqual expectationError expected $ runLabel label progress someTiming
+
+labelTestWithTiming :: String -> Label () -> Progress () -> Timing -> TL.Text -> Test
+labelTestWithTiming testName label progress timing expected =
+    testCase testName $ assertEqual expectationError expected $ runLabel label progress timing
 
 renderDurationTest :: NominalDiffTime -> TL.Text -> Test
 renderDurationTest dt expected =
@@ -98,5 +113,11 @@ someTime = UTCTime (toEnum 0) 0
 someTiming :: Timing
 someTiming = Timing someTime someTime
 
+elapsedSecsTiming :: Pico -> Timing
+elapsedSecsTiming seconds = Timing someTime (addUTCTime (secondsToNominalDiffTime seconds) someTime)
+
 expectationError :: String
 expectationError = "Expected result doesn't match actual result"
+
+remainingTimeLabel :: Label ()
+remainingTimeLabel = remainingTime (TL.pack . formatTime defaultTimeLocale "%s") "Estimating"

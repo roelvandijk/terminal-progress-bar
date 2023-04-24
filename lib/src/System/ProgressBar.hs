@@ -568,8 +568,8 @@ remainingTime
 remainingTime formatNDT altMsg = Label render
   where
     render progress timing
-        | dt > 1 = formatNDT estimatedRemainingTime
         | progressDone progress <= 0 = altMsg
+        | dt > 1 = formatNDT estimatedRemainingTime
         | otherwise = altMsg
       where
         estimatedRemainingTime = estimatedTotalTime - dt
