@@ -1,3 +1,7 @@
+### 0.4.2
+
+* Fixed divide by zero error in remainingTime label (thanks to daniel-chambers).
+
 ### 0.4.1
 
 * Added styleOnComplete field to Style record. Defaults to
