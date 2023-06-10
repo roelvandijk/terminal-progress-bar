@@ -4,7 +4,7 @@ cabal-version: >=1.10
 build-type:    Simple
 author:        Roel van Dijk <roel@lambdacube.nl>
 maintainer:    Roel van Dijk <roel@lambdacube.nl>
-copyright:     2012–2019 Roel van Dijk <roel@lambdacube.nl>
+copyright:     2012–2023 Roel van Dijk <roel@lambdacube.nl>
 license:       BSD3
 license-file:  LICENSE
 category:      System, User Interfaces
